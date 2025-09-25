@@ -24,9 +24,9 @@ const Sidebar = () => {
 
     return (
         <div className="flex">
-        {/* Sidebar */}
+
             <div
-                className="bg-gray-800 text-white fixed h-screen transition-all duration-300 z-10 w-1/7"
+                className="bg-gray-800 text-white fixed h-screen transition-all duration-300 z-10 w-1/6"
             >
                 <div className="flex flex-col items-center">
                     <img
@@ -42,7 +42,7 @@ const Sidebar = () => {
                                 href={link.href}
                                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200
         ${pathname === link.href
-                                    ? '' // Remove tailwind classes for active state
+                                    ? ''
                                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                                 }`}
                                 style={pathname === link.href ? {
@@ -70,26 +70,6 @@ const Sidebar = () => {
                 </div>
             </div>
 
-            {/* for smaller screen */}
-            {/*<div className={`flex-1 p-4 ${isOpen ? 'ml-64' : 'ml-0'}`}>*/}
-            {/*    /!* Button fixed bottom center *!/*/}
-            {/*    <div className="ml-auto">*/}
-            {/*        <button*/}
-            {/*            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"*/}
-            {/*            onClick={() => setIsOpen(!isOpen)}*/}
-            {/*        >*/}
-            {/*            {isOpen ? (*/}
-            {/*                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">*/}
-            {/*                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />*/}
-            {/*                </svg>*/}
-            {/*            ) : (*/}
-            {/*                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">*/}
-            {/*                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />*/}
-            {/*                </svg>*/}
-            {/*            )}*/}
-            {/*        </button>*/}
-            {/*    </div>*/}
-            {/*</div>*/}
         </div>
     );
 };
