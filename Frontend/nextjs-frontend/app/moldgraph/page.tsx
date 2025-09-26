@@ -143,7 +143,7 @@ export default function MoldProductionChart() {
                     <p className="text-center font-medium"></p>
             </div>
 
-            <div className="p-4 pt-12">
+            <div className="p-4 pt-6">
                 <h2 className="text-[1.5rem] ml-5 font-semibold mb-4">Mold Production Chart</h2>
 
                 {/*filtering by date - per week only/exactly*/}
