@@ -34,6 +34,29 @@ export default function MoldProductionChart() {
     const [selectedMolds, setSelectedMolds] = useState<string[]>([]);
     const [topN, setTopN] = useState(5);
     const [searchTerm, setSearchTerm] = useState("");
+    const [moldsToShowCount, setMoldsToShowCount] = useState(30);
+
+
+    const handleStartDateChange = (date: string) => {
+        setStartDate(date);
+
+        // Automatically set endDate 6 days after startDate
+        const start = new Date(date);
+        const newEnd = new Date(start);
+        newEnd.setDate(start.getDate() + 6);
+        setEndDate(newEnd.toISOString().split("T")[0]);
+    };
+
+    const handleEndDateChange = (date: string) => {
+        setEndDate(date);
+
+        // Automatically set startDate 6 days before endDate
+        const end = new Date(date);
+        const newStart = new Date(end);
+        newStart.setDate(end.getDate() - 6);
+        setStartDate(newStart.toISOString().split("T")[0]);
+    };
+
 
     const fetchChartData = async () => {
         const start = new Date(startDate);
@@ -111,48 +134,60 @@ export default function MoldProductionChart() {
     };
 
     return (
-        <div>
+        <div className="flex">
             <Sidebar />
-            <div style={{ marginLeft: "16.666%" }} className="p-4">
-                <h2 className="text-xl font-semibold mb-4">Mold Production Chart</h2>
+            
+            <div className="flex-1 ml-0 md:ml-60">
+
+            <div className="top-0 left-0 md:left-10 w-full bg-[#00A527] text-white p-2.5 z-50">
+                    <p className="text-center font-medium"></p>
+            </div>
+
+            <div className="p-4 pt-12">
+                <h2 className="text-[1.5rem] ml-5 font-semibold mb-4">Mold Production Chart</h2>
 
                 {/*filtering by date - per week only/exactly*/}
-                <h4 className="text-xl font-semibold mb-4">Filters</h4>
-                <div className="flex flex-col md:flex-row gap-4 mb-4 items-start">
-                    <div className="flex gap-2">
+                <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+                <h4 className="text-[1rem] ml-5">Select desired week: </h4>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex items-center gap-2">
                         <div>
-                            <label className="block text-sm">Start Date</label>
+                            <label className="text-sm mr-2">Start Date</label>
                             <input
                                 type="date"
                                 value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="border rounded px-3 py-1"
+                                onChange={(e) => handleStartDateChange(e.target.value)}
+                                className="border rounded px-2 py-1 w-32"
                             />
                         </div>
-                        <div>
-                            <label className="block text-sm">End Date</label>
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm mr-1">End Date</label>
                             <input
                                 type="date"
                                 value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="border rounded px-3 py-1"
+                                onChange={(e) => handleEndDateChange(e.target.value)}
+                                className="border rounded px-2 py-1 w-32"
                             />
                         </div>
+                    </div>
                     </div>
                 </div>
 
                 {/* top n input - max 15 */}
                 {selectedMolds.length === 0 && (
-                    <div className="mb-4">
-                        <label className="block text-sm mb-1">Show top N molds</label>
-                        <input
+                    <div className="mb-4 flex items-center gap-4">
+                        <label className="text-sm ml-5">Show top </label>
+                            <input
                             type="number"
                             min={1}
                             max={15}
                             value={topN}
                             onChange={(e) => setTopN(Number(e.target.value))}
-                            className="border rounded px-3 py-1 w-24"
+                            className="border rounded px-2 py-1 w-16 text-center"
                         />
+                           <span className="text-sm">molds</span>
+                        
                     </div>
                 )}
 
@@ -160,10 +195,12 @@ export default function MoldProductionChart() {
 
                 {/*chart*/}
                 {chartData ? (
+                    <div className="w-full mx-auto" style={{ height: '500px' }}>
                     <Line
                         data={chartData}
                         options={{
                             responsive: true,
+                            maintainAspectRatio: false,
                             plugins: {
                                 legend: { position: "bottom" },
                                 title: { display: true, text: "Products per Mold per Week" },
@@ -181,12 +218,14 @@ export default function MoldProductionChart() {
                             },
                         }}
                     />
+                    </div>
                 ) : (
                     <p className="text-gray-500">Loading chart...</p>
                 )}
 
                 {/* search mold names */}
-                <div className="relative w-64 mb-4">
+                <div className="flex flex-col gap-4">
+                <div className="relative w-full sm:w-64">
                     <input
                         type="text"
                         placeholder="Search mold by name..."
@@ -204,9 +243,11 @@ export default function MoldProductionChart() {
                     <h4 className="font-semibold mb-2">
                         Select molds (leave empty to show top performers):
                     </h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                         {availableMolds
                             .filter((m) => m.toLowerCase().includes(searchTerm.toLowerCase()))
+                            .sort((a, b) => a.localeCompare(b))
+                            .slice(0, moldsToShowCount) // Limit number of displayed molds
                             .map((mold) => (
                                 <label key={mold} className="flex items-center gap-2">
                                     <input
@@ -218,7 +259,22 @@ export default function MoldProductionChart() {
                                 </label>
                             ))}
                     </div>
+
+                     {/* View More button */}
+                            {moldsToShowCount < availableMolds.length && (
+                                <div className="mt-4 flex justify-center">
+                                    <button
+                                        className="bg-[#00A527] hover:bg-green-700 text-gray-200 hover:text-white
+                                        focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 text-center"
+                                        onClick={() => setMoldsToShowCount((prev) => prev + 30)}
+                                    >
+                                        View More
+                                    </button>
+                                </div>
+                            )}
                 </div>
+                </div>
+            </div>
             </div>
         </div>
     );
