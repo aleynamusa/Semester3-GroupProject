@@ -2,11 +2,18 @@ import { RegisterForm } from "./form";
 
 export default function RegisterPage() {
     return (
-        <div className="h-screen w-screen flex justify-center items-center bg-slate-100">
-            <div className="shadow-xl px-8 pb-8 pt-12 bg-white rounded-xl space-y-12"> 
-                <h1 className="font-semibold text-2xl py-8">Create your Account</h1>
+        <div className="flex min-h-screen flex-col justify-center px-6 py-12 lg:px-8 bg-[#222523]">
+            <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+            <h2 className="mt-10 text-center text-[2rem] font-bold tracking-tight text-white leading-9">
+          Create your account
+            </h2>
+            </div>
+            <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
                 <RegisterForm />
-                <p className="text-center">Have an account?  <a href="/login" className="text-indigo-500 hover:underline">Sign in</a></p>
+            <p className="mt-5 text-center text-sm/6 text-gray-400">
+                <span>Have an account? </span>
+            <a href="/login" className="font-semibold text-[#00A527] hover:text-green-300">Sign in</a>
+            </p>
             </div>
         </div>
     )
