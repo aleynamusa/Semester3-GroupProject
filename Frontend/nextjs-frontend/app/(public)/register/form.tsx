@@ -36,7 +36,7 @@ export const RegisterForm = () => {
             return;
         }
 
-        router.push('/check-email' );
+        router.push('/machine-dashboard');
     }
 
     return (

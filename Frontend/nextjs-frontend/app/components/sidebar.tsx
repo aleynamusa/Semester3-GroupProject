@@ -20,9 +20,15 @@ const Sidebar = () => {
             icon: <i className="fa fa-exclamation-circle text-white" style={{fontSize: '24px'}}></i>
         },
         {
-            name: 'Mold Health',
+            name: 'Mold Graph',
             href: '/moldgraph',
-            icon: <i className="fa fa-check-square-o text-white" style={{fontSize: '24px'}}></i>},
+            icon: <i className="fa fa-pie-chart" aria-hidden="true"></i>
+        },
+        {
+            name: 'Mold Health',
+            href: '/mold-health',
+            icon: <i className="fa fa-check-square-o text-white" style={{fontSize: '24px'}}></i>
+        },
     ];
 
     const [open, setOpen] = useState(false);
