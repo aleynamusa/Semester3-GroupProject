@@ -14,7 +14,7 @@ import {
 } from "chart.js";
 import { Line } from "react-chartjs-2";
 import { supabase } from "@/app/lib/supabase";
-import Sidebar from "@/app/sidebar";
+import Sidebar from "@/app/components/sidebar";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 

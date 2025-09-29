@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import logo from '../public/yourlogo.png';
+import logo from '../../public/yourlogo.png';
+import { SignOutButton } from './signoutButton';
 
 const Sidebar = () => {
     const pathname = usePathname();
@@ -72,13 +73,7 @@ const Sidebar = () => {
         </nav>
 
         <div className="px-[4rem] pb-6">
-          <button
-            type="button"
-            className="w-full bg-[#00A527] hover:bg-green-700 text-gray-200 hover:text-white
-                       focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-[1rem] px-5 py-2.5 text-center"
-          >
-            Log Out
-          </button>
+          <SignOutButton />
         </div>
       </div>
     </div>
