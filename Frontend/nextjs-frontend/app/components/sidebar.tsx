@@ -10,18 +10,18 @@ const Sidebar = () => {
     const pathname = usePathname();
 
     const links = [
-        {
-            name: 'Account',
-            href: '/account',
-            icon: <i className="fa fa-user-circle-o text-white" style={{fontSize: '24px'}} />},
+        // {
+        //     name: 'Account',
+        //     href: '/account',
+        //     icon: <i className="fa fa-user-circle-o text-white" style={{fontSize: '24px'}} />},
         {
             name: 'Machine Monitoring',
-            href: '/machine_monitoring',
+            href: '/machine-dashboard',
             icon: <i className="fa fa-exclamation-circle text-white" style={{fontSize: '24px'}}></i>
         },
         {
             name: 'Mold Health',
-            href: '#',
+            href: '/moldgraph',
             icon: <i className="fa fa-check-square-o text-white" style={{fontSize: '24px'}}></i>},
     ];
 
@@ -37,9 +37,9 @@ const Sidebar = () => {
 
                 <div className="flex justify-center mt-6 mb-4">
                     <div className="relative w-35 h-35">
-            <Image 
-            src={logo} 
-            fill 
+            <Image
+            src={logo}
+            fill
             style={{ objectFit: "contain" }} alt="Default avatar" />
           </div>
         </div>
