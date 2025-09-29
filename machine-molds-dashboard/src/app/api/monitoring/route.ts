@@ -1,16 +1,35 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabaseClient';
 
-type MonthlyRow = {
-  timestamp: string;
-  shot_time?: number | null;
-  board?: number | string;
-  port?: number | string;
-  value?: number | null;
-  machine_id?: number | string;
+
+
+type MachineInfo = {
+  id: number;
+  board: number;
+  port: number;
+  name: string;
+  volgorde: number;
+  visible: boolean;
 };
 
-type MonthlyResult = { timestamp: string; value: number | null; board: number | string; port: number | string; machine_id?: number | string };
+
+
+type MachineDataPoint = {
+  timestamp: string;
+  machine_name: string;
+  machine_id: number;
+  board: number;
+  port: number;
+  shot_count: number;
+  mold_info?: {
+    name?: string;
+    description?: string;
+    is_swapped: boolean;
+    swap_color?: string;
+  };
+};
+
+
 
 function parseDate(s?: string) {
   if (!s) return null;
@@ -18,174 +37,178 @@ function parseDate(s?: string) {
   return isNaN(d.getTime()) ? null : d;
 }
 
-function floorDateToUnit(d: Date, unit: 'minute' | 'hour' | 'day') {
-  const t = new Date(d);
-  if (unit === 'minute') {
-    t.setSeconds(0, 0);
-  } else if (unit === 'hour') {
-    t.setMinutes(0, 0, 0);
-  } else {
-    t.setHours(0, 0, 0, 0);
+
+
+
+
+
+async function fetchMachinePortsMap() {
+  const { data, error } = await supabase
+    .from('machine_monitoring_poorten')
+    .select('id, board, port, name, volgorde, visible');
+  if (error) {
+    console.error('fetchMachinePortsMap error', error);
+    return new Map<string, MachineInfo>();
   }
-  return t.toISOString();
+  const map = new Map<string, MachineInfo>();
+  for (const row of data ?? []) {
+    const key = `${row.board}-${row.port}`;
+    map.set(key, {
+      id: row.id,
+      board: row.board,
+      port: row.port,
+      name: row.name ?? `Machine ${row.board}-${row.port}`,
+      volgorde: row.volgorde ?? 0,
+      visible: row.visible ?? true
+    });
+  }
+  return map;
 }
 
-function monthsBetween(start: Date, end: Date) {
-  const arr: string[] = [];
-  const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
-  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), 1));
-  while (cur <= last) {
-    const y = cur.getUTCFullYear();
-    const m = String(cur.getUTCMonth() + 1).padStart(2, '0');
-    arr.push(`${y}${m}`);
-    cur.setUTCMonth(cur.getUTCMonth() + 1);
-  }
-  return arr;
-}
 
-async function getBoardsForComponent(component?: string) {
-  if (!component) return undefined;
+
+
+
+async function getMachineMonitoringData(startDate: string, endDate: string, selectedMachines?: string[], granularity: 'day' | 'hour' | 'minute' = 'day'): Promise<MachineDataPoint[]> {
   try {
-    const { data, error } = await supabase
-      .from('production_data')
-      .select('board, port, start_date, start_time, end_date, end_time, treeview_id, treeview2_id')
-      .or(`treeview_id.eq.${component},treeview2_id.eq.${component}`);
+    console.log(`Fetching machine monitoring data using views for date range ${startDate} to ${endDate}`);
+    
+    if (!selectedMachines || selectedMachines.length === 0) {
+      console.log('No machines selected');
+      return [];
+    }
+
+    const startDateOnly = startDate.split('T')[0];
+    const endDateOnly = endDate.split('T')[0];
+
+    // Select the appropriate view based on granularity
+    const viewName = granularity === 'minute' ? 'v_machine_monitoring_minute' : 
+                     granularity === 'hour' ? 'v_machine_monitoring_hour' : 
+                     'v_machine_monitoring';
+    
+    const timeColumn = granularity === 'minute' ? 'shot_minute' : 
+                       granularity === 'hour' ? 'shot_hour' : 
+                       'shot_date';
+
+    console.log(`Querying ${viewName} view for machines: ${selectedMachines.join(',')}, date range: ${startDateOnly} to ${endDateOnly}, granularity: ${granularity}`);
+
+    // Query the appropriate pre-aggregated view - much faster!
+    const query = supabase
+      .from(viewName)
+      .select(`
+        ${timeColumn},
+        machine_key,
+        board,
+        port,
+        shot_count,
+        machine_name,
+        machine_id,
+        visible
+      `)
+      .gte(timeColumn, granularity === 'day' ? startDateOnly : `${startDateOnly}T00:00:00`)
+      .lte(timeColumn, granularity === 'day' ? endDateOnly : `${endDateOnly}T23:59:59`)
+      .in('machine_key', selectedMachines)
+      .eq('visible', true)
+      .order(timeColumn, { ascending: true })
+      .order('board', { ascending: true })
+      .order('port', { ascending: true });
+
+    const { data, error } = await query;
+
     if (error) {
-      console.error('Error fetching production_data mapping', error);
-      return undefined;
+      console.error('Error querying v_machine_monitoring view:', error);
+      return [];
     }
-    // Normalize into array of { board, port, from: Date, to: Date }
-    const ranges: Array<{ board: number; port: number; from: Date; to: Date }> = [];
-    for (const r of data ?? []) {
-      const board = Number(r.board);
-      const port = Number(r.port);
-      const from = r.start_date && r.start_time ? new Date(`${r.start_date} ${r.start_time}`) : new Date(0);
-      const to = r.end_date && r.end_time ? new Date(`${r.end_date} ${r.end_time}`) : new Date('2030-01-01');
-      ranges.push({ board, port, from, to });
-    }
-    return ranges;
-  } catch (err) {
-    console.error('production_data lookup failed', err);
-    return undefined;
+
+    console.log(`Retrieved ${(data || []).length} pre-aggregated records from view`);
+
+    // Convert to result format
+    const result: MachineDataPoint[] = (data || []).map(row => {
+      // Get the timestamp from the appropriate column
+      const timeValue = (row as Record<string, unknown>)[timeColumn] as string;
+      const timestamp = granularity === 'day' 
+        ? `${timeValue}T12:00:00.000Z` // Use noon for daily data
+        : `${timeValue}.000Z`; // Use exact time for hour/minute data
+      
+      return {
+        timestamp,
+        machine_name: row.machine_name || `Machine ${row.board}-${row.port}`,
+        machine_id: row.machine_id,
+        board: row.board,
+        port: row.port,
+        shot_count: row.shot_count,
+        mold_info: undefined // Will add production data later if needed
+      };
+    });
+
+    console.log(`Generated ${result.length} machine data points from view`);
+    return result;
+
+  } catch (error) {
+    console.error('Error in getMachineMonitoringData:', error);
+    return [];
   }
 }
 
-async function fetchFromMonthlyTables(component?: string, start?: string, end?: string, machines?: string[]): Promise<MonthlyResult[]> {
-  const startDate = start ? new Date(start) : new Date();
-  const endDate = end ? new Date(end) : new Date();
-  const months = monthsBetween(startDate, endDate);
 
-  const boardRanges = await getBoardsForComponent(component);
-
-  const results: MonthlyResult[] = [];
-  for (const ym of months) {
-    const table = `monitoring_data_${ym}`;
-    try {
-      let q = supabase.from(table).select('timestamp, shot_time, board, port').order('timestamp', { ascending: true }).limit(500000);
-
-      if (start) q = q.gte('timestamp', start);
-      if (end) q = q.lte('timestamp', end);
-
-      // If machines list provided (boardport strings like '11'), try to split into board/port and filter
-      if (machines && machines.length) {
-        // not all tables support composite filtering; fetch then filter client-side
-      }
-
-      const { data, error } = await q;
-      if (error) {
-        console.warn(`Skipping table ${table} due to error:`, error.message ?? error);
-        continue;
-      }
-      for (const row of (data ?? []) as MonthlyRow[]) {
-        try {
-          const ts = new Date(row.timestamp);
-          if (isNaN(ts.getTime())) continue;
-          // if we have boardRanges for the component, filter rows that fall into any active range
-          if (boardRanges && boardRanges.length) {
-            const match = boardRanges.some((br) => br.board === Number(row.board) && br.port === Number(row.port) && ts >= br.from && ts <= br.to);
-            if (!match) continue;
-          }
-          // if machines filter provided, interpret machines as board+port strings
-          if (machines && machines.length) {
-            const key = String(row.board) + String(row.port);
-            if (!machines.includes(key)) continue;
-          }
-
-          results.push({ timestamp: ts.toISOString(), value: row.shot_time == null ? null : Number(row.shot_time), board: row.board ?? '', port: row.port ?? '', machine_id: ('machine_id' in row ? row.machine_id : undefined) });
-        } catch {
-          // ignore bad row
-        }
-      }
-    } catch (err) {
-      console.warn(`Error querying ${table}:`, err);
-      continue;
-    }
-  }
-
-  // sort by timestamp
-  results.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-  return results;
-}
 
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const params = url.searchParams;
-    const component = params.get('component') ?? undefined;
+    const endpoint = params.get('endpoint') ?? 'legacy';
     const machinesParam = params.get('machines');
     const machines = machinesParam ? machinesParam.split(',') : undefined;
-    const agg = (params.get('agg') ?? 'none') as 'none' | 'minute' | 'hour' | 'day';
+    const granularity = (params.get('granularity') as 'day' | 'hour' | 'minute') ?? 'day';
 
-    const endDate = parseDate(params.get('end') ?? undefined) ?? new Date();
-    const startDate = parseDate(params.get('start') ?? undefined) ?? new Date(Date.now() - 7 * 24 * 3600 * 1000);
+    const endDate = parseDate(params.get('end') ?? undefined) ?? new Date('2020-09-07');
+    const startDate = parseDate(params.get('start') ?? undefined) ?? new Date('2020-09-07');
 
-    const maxRangeMs = 365 * 24 * 3600 * 1000;
-    if (endDate.getTime() - startDate.getTime() > maxRangeMs && agg === 'none') {
-      return NextResponse.json({ error: 'Range too large; request aggregation using agg=hour or day' }, { status: 400 });
-    }
+    if (endpoint === 'machines') {
+      const machinesOnly = params.get('machines_only') === 'true';
 
-    let rows: MonthlyResult[] = [];
-    try {
-      rows = await fetchFromMonthlyTables(component, startDate.toISOString(), endDate.toISOString(), machines);
-    } catch (err) {
-      console.error('Monthly-table query failed, falling back to sample data', err);
-      const sample: MonthlyResult[] = [];
-      const now = Date.now();
-      for (let i = 0; i < 500; i++) {
-        sample.push({ timestamp: new Date(now - (500 - i) * 60000).toISOString(), value: 4 + Math.random() * 4, board: 1, port: 1 });
+      if (machinesOnly) {
+        try {
+          const machinesMap = await fetchMachinePortsMap();
+          const machines = Array.from(machinesMap.values());
+          return NextResponse.json({
+            success: true,
+            machines: machines,
+            total_machines: machines.length,
+            note: "Machine list retrieved from machine_monitoring_poorten table"
+          });
+        } catch (error) {
+          return NextResponse.json({
+            success: false,
+            error: `Failed to fetch machines: ${error}`,
+            machines: [],
+            total_machines: 0
+          });
+        }
       }
-      rows = sample;
+
+      const selectedMachines = machines;
+
+      const machineData = await getMachineMonitoringData(
+        startDate.toISOString(),
+        endDate.toISOString(),
+        selectedMachines,
+        granularity
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: machineData,
+        meta: {
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString(),
+          total_records: machineData.length,
+          machines_count: new Set(machineData.map(d => d.machine_id)).size
+        }
+      });
     }
 
-    // Normalize and optionally aggregate
-    const normalized = (rows || []).map((r) => ({
-      timestamp: new Date(r.timestamp).toISOString(),
-      value: (r.value == null ? null : Number(r.value)),
-      component_id: component ?? null,
-      machine_id: r.board != null && r.port != null ? String(r.board) + String(r.port) : (r.machine_id != null ? String(r.machine_id) : null),
-    }));
-
-    if (agg === 'none') {
-      return NextResponse.json({ data: normalized, aggregated: false });
-    }
-
-    // aggregate in-js by unit
-    const groups: Record<string, { sum: number; count: number; min: number; max: number }> = {};
-    for (const row of normalized) {
-      if (row.value == null || isNaN(row.value)) continue;
-      const key = floorDateToUnit(new Date(row.timestamp), agg);
-      if (!groups[key]) groups[key] = { sum: 0, count: 0, min: row.value, max: row.value };
-      groups[key].sum += row.value;
-      groups[key].count += 1;
-      if (row.value < groups[key].min) groups[key].min = row.value;
-      if (row.value > groups[key].max) groups[key].max = row.value;
-    }
-
-    const out = Object.keys(groups)
-      .sort()
-      .map((k) => ({ timestamp: k, avg: groups[k].sum / groups[k].count, count: groups[k].count, min: groups[k].min, max: groups[k].max }));
-
-    return NextResponse.json({ data: out, aggregated: true });
+    return NextResponse.json({ error: 'Legacy endpoint not supported' }, { status: 400 });
   } catch (err: unknown) {
     console.error(err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
