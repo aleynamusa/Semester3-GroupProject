@@ -195,7 +195,7 @@ export default function MoldProductionChart() {
 
                 {/*chart*/}
                 {chartData ? (
-                    <div className="w-full mx-auto" style={{ height: '500px' }}>
+                    <div className="w-full mx-auto border border-[#222523]" style={{ height: '500px' }}>
                     <Line
                         data={chartData}
                         options={{
@@ -224,7 +224,7 @@ export default function MoldProductionChart() {
                 )}
 
                 {/* search mold names */}
-                <div className="flex flex-col gap-4">
+                <div className="mt-5 flex flex-col gap-4">
                 <div className="relative w-full sm:w-64">
                     <input
                         type="text"

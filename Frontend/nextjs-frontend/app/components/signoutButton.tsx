@@ -9,6 +9,7 @@ export function SignOutButton() {
         window.location.href = "/login";
     }
     return (
-        <button onClick={onClick} className="bg-red-500 text-white rounded px-4 py-2 hover:bg-red-950">Sign Out</button>
+        <button onClick={onClick} className="w-full bg-[#00A527] hover:bg-green-700 text-gray-200 hover:text-white
+                                 font-medium rounded-lg text-[1rem] px-5 py-2.5 text-center">Sign Out</button>
     )
 }

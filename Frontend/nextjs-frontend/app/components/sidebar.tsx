@@ -17,12 +17,12 @@ const Sidebar = () => {
         {
             name: 'Machine Monitoring',
             href: '/machine-dashboard',
-            icon: <i className="fa fa-exclamation-circle text-white" style={{fontSize: '24px'}}></i>
+            icon: <i className="fa fa-exclamation-circle text-white" style={{fontSize: '28px'}}></i>
         },
         {
             name: 'Mold Graph',
             href: '/moldgraph',
-            icon: <i className="fa fa-pie-chart" aria-hidden="true"></i>
+            icon: <i className="fa fa-bar-chart text-white" style={{fontSize: '24px'}}></i>
         },
         {
             name: 'Mold Health',
