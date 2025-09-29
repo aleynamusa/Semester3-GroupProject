@@ -1,30 +1,28 @@
-
-
+"use client";
 import MachineTimeline from "@/components/MachineTimeline";
-import {supabase} from "@/app/lib/supabase";
-import {RawRow, transformData} from "@/app/utils/transformData";
+import { supabase } from "@/app/lib/supabase";
+import { RawRow, transformData } from "@/app/utils/transformData";
+import { ProductionPopup } from "../../components/moldPopUp";
+import { useState } from "react";
+import { ProductionData } from "../types/index";
 
 
-export default async function MachineMonitoring() {
-    const { data, error } = await supabase
-        .from("monitoring_data_202009")
-        .select("timestamp, shot_time, machine_monitoring_poorten ( name )")
-        .eq("machine_monitoring_poorten.visible", true)
-        .order("timestamp", { ascending: true });
+export default function MachineMonitoringPage() {
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
 
-    if (error) {
-        console.error(error);
-        return <div>Error loading data</div>;
-    }
+  return (
+    <div className="p-6">
+      <button
+        onClick={() => setIsPopupOpen(true)}
+        className="bg-blue-500 text-white px-4 py-2 rounded"
+      >
+        Show Production Data
+      </button>
 
-    const datasets = transformData(data as RawRow[]);
-
-    return (
-        <main>
-            <h1 className="text-xl font-bold mb-4">Machine Monitoring</h1>
-            <MachineTimeline datasets={datasets} />
-            <button></button>
-        </main>
-    );
+      <ProductionPopup
+        isOpen={isPopupOpen}
+        onClose={() => setIsPopupOpen(false)}
+      />
+    </div>
+  );
 }
-
