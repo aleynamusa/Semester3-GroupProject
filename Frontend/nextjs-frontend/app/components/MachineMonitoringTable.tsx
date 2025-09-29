@@ -83,7 +83,7 @@ export default function MachineMonitoringTable() {
   useEffect(() => {
     const fetchMachines = async () => {
       try {
-        const response = await fetch('/api/monitoring?endpoint=machines&machines_only=true');
+        const response = await fetch('./machine-dashboard/api/monitoring?endpoint=machines&machines_only=true');
         const result = await response.json();
 
         if (result.success) {
@@ -123,7 +123,7 @@ export default function MachineMonitoringTable() {
         params.set('machines', selectedMachines.join(','));
       }
 
-      const response = await fetch(`/api/monitoring?${params}`);
+      const response = await fetch(`./machine-dashboard/api/monitoring?${params}`);
       const result: MachineMonitoringResponse = await response.json();
 
       if (result.success) {
