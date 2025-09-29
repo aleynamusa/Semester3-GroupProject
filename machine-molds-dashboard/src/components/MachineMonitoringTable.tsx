@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useEffect } from 'react';
 import {
   Chart as ChartJS,
@@ -71,6 +70,12 @@ export default function MachineMonitoringTable() {
   const [error, setError] = useState<string | null>(null);
   const [startDate, setStartDate] = useState('2020-09-07');
   const [endDate, setEndDate] = useState('2020-09-07');
+
+  const toEuropean = (iso: string) => {
+    if (!iso) return '';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  };
   const [showTable, setShowTable] = useState(true);
   const [showCharts, setShowCharts] = useState(true);
   const [granularity, setGranularity] = useState<'minute' | 'hour' | 'day'>('day');
@@ -80,10 +85,15 @@ export default function MachineMonitoringTable() {
       try {
         const response = await fetch('/api/monitoring?endpoint=machines&machines_only=true');
         const result = await response.json();
-        
+
         if (result.success) {
-          setMachines(result.machines || []);
-          const visibleMachines = (result.machines || [])
+          const sortedMachines = (result.machines || []).sort((a: Machine, b: Machine) => {
+            const nameA = (a.name || `${a.board}-${a.port}`).toLowerCase();
+            const nameB = (b.name || `${b.board}-${b.port}`).toLowerCase();
+            return nameA.localeCompare(nameB);
+          });
+          setMachines(sortedMachines);
+          const visibleMachines = sortedMachines
             .filter((m: Machine) => m.visible)
             .slice(0, 3)
             .map((m: Machine) => `${m.board}-${m.port}`);
@@ -100,7 +110,7 @@ export default function MachineMonitoringTable() {
   const fetchData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const params = new URLSearchParams({
         endpoint: 'machines',
@@ -108,14 +118,14 @@ export default function MachineMonitoringTable() {
         end: endDate + 'T23:59:59.999Z',
         granularity: granularity
       });
-      
+
       if (selectedMachines.length > 0) {
         params.set('machines', selectedMachines.join(','));
       }
-      
+
       const response = await fetch(`/api/monitoring?${params}`);
       const result: MachineMonitoringResponse = await response.json();
-      
+
       if (result.success) {
         setData(result.data);
       } else {
@@ -137,17 +147,27 @@ export default function MachineMonitoringTable() {
       setError('Please select at least one machine before refreshing');
       return;
     }
-
+    if (endDate < startDate) {
+      window.alert('End date cannot be before start date. Please select a valid date range.');
+      return;
+    }
     await fetchData();
   };
 
   const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
+    const date = new Date(timestamp);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   };
 
   const getRowStyle = (moldInfo?: MoldInfo) => {
     if (!moldInfo) return {};
-    
+
     if (moldInfo.is_swapped) {
       return {
         backgroundColor: '#ffebee',
@@ -264,6 +284,7 @@ export default function MachineMonitoringTable() {
               onChange={(e) => setStartDate(e.target.value)}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
+            <div className="text-xs text-gray-300 mt-1">Selected: {toEuropean(startDate)}</div>
           </div>
           <div>
             <label htmlFor="endDate" className="block text-sm font-medium text-white">
@@ -276,6 +297,7 @@ export default function MachineMonitoringTable() {
               onChange={(e) => setEndDate(e.target.value)}
               className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
             />
+            <div className="text-xs text-gray-300 mt-1">Selected: {toEuropean(endDate)}</div>
           </div>
           <div>
             <label htmlFor="granularity" className="block text-sm font-medium text-white">
