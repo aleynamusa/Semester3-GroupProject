@@ -12,7 +12,7 @@ export default function RegisterPage() {
                     <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
                         <LoginForm />
                     <p className="mt-5 text-center text-sm/6 text-gray-400">
-                        <span>Don't have an account? </span>
+                        <span>Don&apos;t have an account? </span>
                     <a href="/register" className="font-semibold text-[#00A527] hover:text-green-300">Sign up</a>
                     </p>
                     </div>
