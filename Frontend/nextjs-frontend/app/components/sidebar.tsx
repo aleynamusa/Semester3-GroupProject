@@ -23,12 +23,7 @@ const Sidebar = () => {
             name: 'Mold Graph',
             href: '/moldgraph',
             icon: <i className="fa fa-bar-chart text-white" style={{fontSize: '24px'}}></i>
-        },
-        {
-            name: 'Mold Health',
-            href: '/mold-health',
-            icon: <i className="fa fa-check-square-o text-white" style={{fontSize: '24px'}}></i>
-        },
+        }
     ];
 
     const [open, setOpen] = useState(false);

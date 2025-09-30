@@ -81,7 +81,6 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
     const startDateOnly = startDate.split('T')[0];
     const endDateOnly = endDate.split('T')[0];
 
-    // Select the appropriate view based on granularity
     const viewName = granularity === 'minute' ? 'v_machine_monitoring_minute' : 
                      granularity === 'hour' ? 'v_machine_monitoring_hour' : 
                      'v_machine_monitoring';
@@ -92,7 +91,6 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
 
     console.log(`Querying ${viewName} view for machines: ${selectedMachines.join(',')}, date range: ${startDateOnly} to ${endDateOnly}, granularity: ${granularity}`);
 
-    // Query the appropriate pre-aggregated view - much faster!
     const query = supabase
       .from(viewName)
       .select(`
@@ -122,13 +120,11 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
 
     console.log(`Retrieved ${(data || []).length} pre-aggregated records from view`);
 
-    // Convert to result format
     const result: MachineDataPoint[] = (data || []).map(row => {
-      // Get the timestamp from the appropriate column
       const timeValue = (row as Record<string, unknown>)[timeColumn] as string;
       const timestamp = granularity === 'day' 
-        ? `${timeValue}T12:00:00.000Z` // Use noon for daily data
-        : `${timeValue}.000Z`; // Use exact time for hour/minute data
+        ? `${timeValue}T12:00:00.000Z`
+        : `${timeValue}.000Z`;
       
       return {
         timestamp,
@@ -137,7 +133,7 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
         board: row.board,
         port: row.port,
         shot_count: row.shot_count,
-        mold_info: undefined // Will add production data later if needed
+        mold_info: undefined
       };
     });
 

@@ -127,6 +127,7 @@ export default function MachineMonitoringTable() {
       const result: MachineMonitoringResponse = await response.json();
 
       if (result.success) {
+        console.log('API Response data sample:', result.data.slice(0, 3));
         setData(result.data);
       } else {
         setError('Failed to fetch machine monitoring data');
@@ -154,8 +155,30 @@ export default function MachineMonitoringTable() {
     await fetchData();
   };
 
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
+    const formatTimestamp = (timestamp: string) => {
+    if (!timestamp) {
+      return 'Invalid timestamp';
+    }
+
+    let cleanedTimestamp = timestamp;
+    
+    if (timestamp.includes('+00:00:000Z')) {
+      cleanedTimestamp = timestamp.replace('+00:00:000Z', '.000Z');
+    }
+    
+    if (timestamp.includes('+00:00Z')) {
+      cleanedTimestamp = timestamp.replace('+00:00Z', '.000Z');
+    }
+    
+    cleanedTimestamp = cleanedTimestamp.replace(/Z.*$/, 'Z');
+
+    const date = new Date(cleanedTimestamp);
+
+    if (isNaN(date.getTime())) {
+      console.error('Invalid timestamp:', timestamp, 'cleaned:', cleanedTimestamp);
+      return `Raw: ${timestamp}`;
+    }
+
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
@@ -199,12 +222,56 @@ export default function MachineMonitoringTable() {
       return acc;
     }, {} as Record<string, Array<{x: string, y: number}>>);
 
+    // Function to detect gaps and insert null values
+    const addGapBreaks = (points: Array<{x: string, y: number}>) => {
+      if (points.length <= 1) return points;
+      
+      const sortedPoints = points.sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime());
+      const result: Array<{x: string, y: number | null}> = [];
+      
+      // Calculate expected interval based on granularity
+      let expectedInterval: number;
+      switch (granularity) {
+        case 'minute':
+          expectedInterval = 60 * 1000; // 1 minute in milliseconds
+          break;
+        case 'hour':
+          expectedInterval = 60 * 60 * 1000; // 1 hour in milliseconds
+          break;
+        case 'day':
+          expectedInterval = 24 * 60 * 60 * 1000; // 1 day in milliseconds
+          break;
+        default:
+          expectedInterval = 24 * 60 * 60 * 1000;
+      }
+      
+      for (let i = 0; i < sortedPoints.length; i++) {
+        result.push(sortedPoints[i]);
+        
+        if (i < sortedPoints.length - 1) {
+          const currentTime = new Date(sortedPoints[i].x).getTime();
+          const nextTime = new Date(sortedPoints[i + 1].x).getTime();
+          const timeDiff = nextTime - currentTime;
+          
+          if (timeDiff > expectedInterval * 2) {
+            result.push({
+              x: sortedPoints[i].x,
+              y: null
+            });
+          }
+        }
+      }
+      
+      return result;
+    };
+
     const datasets = Object.entries(groupedData).map(([machineName, points], index) => ({
       label: machineName,
-      data: points.sort((a, b) => new Date(a.x).getTime() - new Date(b.x).getTime()),
+      data: addGapBreaks(points),
       borderColor: machineColors[index % machineColors.length],
       backgroundColor: machineColors[index % machineColors.length] + '20',
       tension: 0.1,
+      spanGaps: false,
     }));
 
     return {
