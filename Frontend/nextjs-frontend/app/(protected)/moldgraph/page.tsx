@@ -202,7 +202,6 @@ export default function MoldProductionChart() {
                             className="border rounded px-2 py-1 w-16 text-center"
                         />
                            <span className="text-sm">molds</span>
-                        
                     </div>
                 )}
 
