@@ -224,16 +224,17 @@ export default function MachineMonitoringTable() {
 
     let cleanedTimestamp = timestamp;
     
-    if (timestamp.includes('+00:00:000Z')) {
-      cleanedTimestamp = timestamp.replace('+00:00:000Z', '.000Z');
+    // Handle various timestamp formats
+    // Remove +00:00 before .000Z
+    cleanedTimestamp = cleanedTimestamp.replace('+00:00.000Z', '.000Z');
+    // Remove +00:00 and add .000Z if not present
+    if (cleanedTimestamp.includes('+00:00')) {
+      cleanedTimestamp = cleanedTimestamp.replace('+00:00', '');
+      if (!cleanedTimestamp.endsWith('Z')) {
+        cleanedTimestamp += 'Z';
+      }
     }
     
-    if (timestamp.includes('+00:00Z')) {
-      cleanedTimestamp = timestamp.replace('+00:00Z', '.000Z');
-    }
-    
-    cleanedTimestamp = cleanedTimestamp.replace(/Z.*$/, 'Z');
-
     const date = new Date(cleanedTimestamp);
 
     if (isNaN(date.getTime())) {
@@ -523,12 +524,25 @@ export default function MachineMonitoringTable() {
                         
                         const [board, port] = match[1].split('-').map(Number);
                         
-                        // Find matching data point
-                        const dataPoint = data.find(d => 
-                          d.board === board && 
-                          d.port === port && 
-                          new Date(d.timestamp).getTime() === timestamp
-                        );
+                        // Find matching data point - normalize timestamps for comparison
+                        const dataPoint = data.find(d => {
+                          if (d.board !== board || d.port !== port) return false;
+                          
+                          // Normalize both timestamps to compare
+                          const normalizeTimestamp = (ts: string) => {
+                            let cleaned = ts.replace('+00:00.000Z', '.000Z')
+                                           .replace('+00:00', '')
+                                           .replace(/Z.*$/, 'Z');
+                            if (!cleaned.endsWith('Z')) cleaned += 'Z';
+                            return new Date(cleaned).getTime();
+                          };
+                          
+                          const dataTime = normalizeTimestamp(d.timestamp);
+                          const contextTime = timestamp;
+                          
+                          // Allow small time difference (1 second) to account for rounding
+                          return Math.abs(dataTime - contextTime) < 1000;
+                        });
                         
                         if (dataPoint?.mold_info) {
                           const lines = [];
