@@ -21,7 +21,7 @@ export default function Home() {
           </h2>
 
           {/* Main Table */}
-          <div className="bg-white dark:bg-neutral-800 rounded-lg shadow-md p-4">
+          <div className="bg-black">
             <MachineMonitoringTable />
           </div>
         </div>

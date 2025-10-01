@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabase';
 
-
-
 type MachineInfo = {
   id: number;
   board: number;
@@ -10,9 +8,14 @@ type MachineInfo = {
   name: string;
   volgorde: number;
   visible: boolean;
+  current_mold?: {
+    mold_name: string | null;
+    mold_description: string | null;
+    is_swapped: boolean;
+    swap_color: string;
+    last_seen: string;
+  } | null;
 };
-
-
 
 type MachineDataPoint = {
   timestamp: string;
@@ -29,28 +32,49 @@ type MachineDataPoint = {
   };
 };
 
-
-
 function parseDate(s?: string) {
   if (!s) return null;
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
 }
 
-
-
-
-
-
-async function fetchMachinePortsMap() {
+async function fetchMachinePortsMap(includeMolds: boolean = false) {
   const { data, error } = await supabase
     .from('machine_monitoring_poorten')
     .select('id, board, port, name, volgorde, visible');
+  
   if (error) {
     console.error('fetchMachinePortsMap error', error);
     return new Map<string, MachineInfo>();
   }
+  
   const map = new Map<string, MachineInfo>();
+  
+  // Fetch current mold info if requested
+  let moldMap = new Map<string, any>();
+  if (includeMolds) {
+    const { data: moldData, error: moldError } = await supabase
+      .from('v_daily_shots')
+      .select('board, port, mold_name, mold_description, is_swapped, swap_color, shot_date')
+      .order('shot_date', { ascending: false });
+    
+    if (!moldError && moldData) {
+      // Get the latest mold for each machine
+      moldData.forEach(row => {
+        const key = `${row.board}-${row.port}`;
+        if (!moldMap.has(key)) {
+          moldMap.set(key, {
+            mold_name: row.mold_name,
+            mold_description: row.mold_description,
+            is_swapped: row.is_swapped,
+            swap_color: row.swap_color,
+            last_seen: row.shot_date
+          });
+        }
+      });
+    }
+  }
+  
   for (const row of data ?? []) {
     const key = `${row.board}-${row.port}`;
     map.set(key, {
@@ -59,19 +83,22 @@ async function fetchMachinePortsMap() {
       port: row.port,
       name: row.name ?? `Machine ${row.board}-${row.port}`,
       volgorde: row.volgorde ?? 0,
-      visible: row.visible ?? true
+      visible: row.visible ?? true,
+      current_mold: includeMolds ? (moldMap.get(key) || null) : undefined
     });
   }
+  
   return map;
 }
 
-
-
-
-
-async function getMachineMonitoringData(startDate: string, endDate: string, selectedMachines?: string[], granularity: 'day' | 'hour' | 'minute' = 'day'): Promise<MachineDataPoint[]> {
+async function getMachineMonitoringData(
+  startDate: string, 
+  endDate: string, 
+  selectedMachines?: string[], 
+  granularity: 'day' | 'hour' | 'minute' = 'day'
+): Promise<MachineDataPoint[]> {
   try {
-    console.log(`Fetching machine monitoring data using views for date range ${startDate} to ${endDate}`);
+    console.log(`Fetching machine monitoring data with mold info for date range ${startDate} to ${endDate}`);
     
     if (!selectedMachines || selectedMachines.length === 0) {
       console.log('No machines selected');
@@ -81,10 +108,10 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
     const startDateOnly = startDate.split('T')[0];
     const endDateOnly = endDate.split('T')[0];
 
-    // Select the appropriate view based on granularity
-    const viewName = granularity === 'minute' ? 'v_machine_monitoring_minute' : 
-                     granularity === 'hour' ? 'v_machine_monitoring_hour' : 
-                     'v_machine_monitoring';
+    // Use the materialized views that include mold data
+    const viewName = granularity === 'minute' ? 'v_minute_shots' : 
+                     granularity === 'hour' ? 'v_hour_shots' : 
+                     'v_daily_shots';
     
     const timeColumn = granularity === 'minute' ? 'shot_minute' : 
                        granularity === 'hour' ? 'shot_hour' : 
@@ -92,7 +119,6 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
 
     console.log(`Querying ${viewName} view for machines: ${selectedMachines.join(',')}, date range: ${startDateOnly} to ${endDateOnly}, granularity: ${granularity}`);
 
-    // Query the appropriate pre-aggregated view - much faster!
     const query = supabase
       .from(viewName)
       .select(`
@@ -101,14 +127,14 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
         board,
         port,
         shot_count,
-        machine_name,
-        machine_id,
-        visible
+        mold_name,
+        mold_description,
+        is_swapped,
+        swap_color
       `)
       .gte(timeColumn, granularity === 'day' ? startDateOnly : `${startDateOnly}T00:00:00`)
       .lte(timeColumn, granularity === 'day' ? endDateOnly : `${endDateOnly}T23:59:59`)
       .in('machine_key', selectedMachines)
-      .eq('visible', true)
       .order(timeColumn, { ascending: true })
       .order('board', { ascending: true })
       .order('port', { ascending: true });
@@ -116,32 +142,43 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error querying v_machine_monitoring view:', error);
+      console.error('Error querying materialized view:', error);
       return [];
     }
 
-    console.log(`Retrieved ${(data || []).length} pre-aggregated records from view`);
+    console.log(`Retrieved ${(data || []).length} records with mold info from view`);
 
-    // Convert to result format
+    // Get machine info for names and IDs
+    const machinesMap = await fetchMachinePortsMap(false);
+
     const result: MachineDataPoint[] = (data || []).map(row => {
-      // Get the timestamp from the appropriate column
       const timeValue = (row as Record<string, unknown>)[timeColumn] as string;
       const timestamp = granularity === 'day' 
-        ? `${timeValue}T12:00:00.000Z` // Use noon for daily data
-        : `${timeValue}.000Z`; // Use exact time for hour/minute data
+        ? `${timeValue}T12:00:00.000Z`
+        : `${timeValue}.000Z`;
+      
+      const machineKey = `${row.board}-${row.port}`;
+      const machineInfo = machinesMap.get(machineKey);
       
       return {
         timestamp,
-        machine_name: row.machine_name || `Machine ${row.board}-${row.port}`,
-        machine_id: row.machine_id,
+        machine_name: machineInfo?.name || `Machine ${row.board}-${row.port}`,
+        machine_id: machineInfo?.id || 0,
         board: row.board,
         port: row.port,
         shot_count: row.shot_count,
-        mold_info: undefined // Will add production data later if needed
+        mold_info: row.mold_name ? {
+          name: row.mold_name,
+          description: row.mold_description,
+          is_swapped: row.is_swapped,
+          swap_color: row.swap_color
+        } : undefined
       };
     });
 
-    console.log(`Generated ${result.length} machine data points from view`);
+    console.log(`Generated ${result.length} machine data points with mold info`);
+    console.log('Sample with mold info:', result.filter(r => r.mold_info).slice(0, 2));
+    
     return result;
 
   } catch (error) {
@@ -149,8 +186,6 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
     return [];
   }
 }
-
-
 
 export async function GET(request: Request) {
   try {
@@ -160,6 +195,7 @@ export async function GET(request: Request) {
     const machinesParam = params.get('machines');
     const machines = machinesParam ? machinesParam.split(',') : undefined;
     const granularity = (params.get('granularity') as 'day' | 'hour' | 'minute') ?? 'day';
+    const includeMolds = params.get('include_molds') === 'true';
 
     const endDate = parseDate(params.get('end') ?? undefined) ?? new Date('2020-09-07');
     const startDate = parseDate(params.get('start') ?? undefined) ?? new Date('2020-09-07');
@@ -169,13 +205,16 @@ export async function GET(request: Request) {
 
       if (machinesOnly) {
         try {
-          const machinesMap = await fetchMachinePortsMap();
-          const machines = Array.from(machinesMap.values());
+          const machinesMap = await fetchMachinePortsMap(includeMolds);
+          const machinesList = Array.from(machinesMap.values());
+          
+          console.log(`Returning ${machinesList.length} machines${includeMolds ? ' with mold info' : ''}`);
+          
           return NextResponse.json({
             success: true,
-            machines: machines,
-            total_machines: machines.length,
-            note: "Machine list retrieved from machine_monitoring_poorten table"
+            machines: machinesList,
+            total_machines: machinesList.length,
+            note: `Machine list retrieved from machine_monitoring_poorten table${includeMolds ? ' with current mold info' : ''}`
           });
         } catch (error) {
           return NextResponse.json({
@@ -203,7 +242,8 @@ export async function GET(request: Request) {
           start_date: startDate.toISOString(),
           end_date: endDate.toISOString(),
           total_records: machineData.length,
-          machines_count: new Set(machineData.map(d => d.machine_id)).size
+          machines_count: new Set(machineData.map(d => d.machine_id)).size,
+          records_with_mold_info: machineData.filter(d => d.mold_info).length
         }
       });
     }

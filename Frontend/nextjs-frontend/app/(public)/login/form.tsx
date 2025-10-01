@@ -28,7 +28,7 @@ export default function LoginForm() {
             setError(error.message);
             return;
         }
-        router.push("/dashboard");
+        router.push("/machine-dashboard");
     }
         return (
         <form onSubmit={onSubmit} className="space-y-2">

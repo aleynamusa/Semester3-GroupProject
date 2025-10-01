@@ -1,151 +1,311 @@
-import { NextResponse } from "next/server";
-import { supabase } from "../../lib/supabase";
+"use client";
 
-type MachineInfo = {
-  id: number;
-  board: number;
-  port: number;
-  name: string;
-  description?: string;
-  volgorde: number;
-  visible: boolean;
+import { useEffect, useState } from "react";
+import ChartDataLabels from "chartjs-plugin-datalabels";
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    ChartData,
+} from "chart.js";
+import { Line } from "react-chartjs-2";
+import { supabase } from "@/app/lib/supabase";
+import Sidebar from "@/app/components/sidebar";
+import SingleMoldChart from "@/app/components/SingleMoldChart";
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    ChartDataLabels
+);
+
+type MoldDailySummary = {
+    mold_id: number;
+    mold_name: string;
+    operation_date: string;
+    total_products: number;
 };
 
-type MachineDataPoint = {
-  timestamp: string;
-  machine_name: string;
-  machine_id: number;
-  board: number;
-  port: number;
-  shot_count: number;
-  mold_info: {
-    name: string;
-    description?: string;
-    is_swapped: boolean;
-    swap_color?: string;
-  };
-};
+export default function MoldProductionChart() {
+    const [chartData, setChartData] = useState<ChartData<"line", number[], string>>();
+    const [startDate, setStartDate] = useState("2020-09-24");
+    const [endDate, setEndDate] = useState("2020-09-30");
+    const [error, setError] = useState("");
+    const [availableMolds, setAvailableMolds] = useState<string[]>([]);
+    const [selectedMolds, setSelectedMolds] = useState<string[]>([]);
+    const [topN, setTopN] = useState(5);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [moldsToShowCount, setMoldsToShowCount] = useState(30);
 
-async function fetchMachinePortsMap() {
-  const { data, error } = await supabase
-    .from("machine_monitoring_poorten")
-    .select("id, board, port, name, description, volgorde, visible");
 
-  if (error) {
-    console.error("fetchMachinePortsMap error", error);
-    return new Map<string, MachineInfo>();
-  }
+    const handleStartDateChange = (date: string) => {
+        setStartDate(date);
 
-  const map = new Map<string, MachineInfo>();
-  for (const row of data ?? []) {
-    const key = `${row.board}-${row.port}`;
-    map.set(key, {
-      id: row.id,
-      board: row.board,
-      port: row.port,
-      name: row.name ?? `Machine ${row.board}-${row.port}`,
-      description: row.description,
-      volgorde: row.volgorde ?? 0,
-      visible: row.visible ?? true,
-    });
-  }
-  return map;
-}
-
-async function fetchFromView(
-  viewName: string,
-  timeColumn: string,
-  selectedMachines?: string[]
-): Promise<MachineDataPoint[]> {
-  if (!selectedMachines || selectedMachines.length === 0) return [];
-
-  const machinesMap = await fetchMachinePortsMap();
-
-  const { data, error } = await supabase
-    .from(viewName)
-    .select("*")
-    .in("machine_key", selectedMachines)
-    .order(timeColumn, { ascending: true })
-    .order("board", { ascending: true })
-    .order("port", { ascending: true });
-
-  if (error) {
-    console.error(`Error querying ${viewName}:`, error);
-    return [];
-  }
-
-  return (data || []).map((row: any) => {
-    const machineInfo = machinesMap.get(row.machine_key);
-    const timestamp = new Date(row[timeColumn]).toISOString();
-
-    const moldInfo = row.mold_name || row.mold_description || row.is_swapped !== null
-      ? {
-          name: row.mold_name ?? "Unknown Mold",
-          description: row.mold_description ?? "",
-          is_swapped: Boolean(row.is_swapped),
-          swap_color: row.swap_color ?? undefined,
-        }
-      : { name: "Unknown Mold", is_swapped: false };
-
-    return {
-      timestamp,
-      machine_name: machineInfo?.name || `Machine ${row.board}-${row.port}`,
-      machine_id: machineInfo?.id || 0,
-      board: row.board,
-      port: row.port,
-      shot_count: row.shot_count ?? 0,
-      mold_info: moldInfo,
+        // Automatically set endDate 6 days after startDate
+        const start = new Date(date);
+        const newEnd = new Date(start);
+        newEnd.setDate(start.getDate() + 6);
+        setEndDate(newEnd.toISOString().split("T")[0]);
     };
-  });
-}
 
-export async function GET(request: Request) {
-  try {
-    const url = new URL(request.url);
-    const params = url.searchParams;
-    const endpoint = params.get("endpoint") ?? "legacy";
-    const machinesParam = params.get("machines");
-    const machines = machinesParam ? machinesParam.split(",") : undefined;
+    const handleEndDateChange = (date: string) => {
+        setEndDate(date);
 
-    if (endpoint === "machines") {
-      const machinesOnly = params.get("machines_only") === "true";
+        // Automatically set startDate 6 days before endDate
+        const end = new Date(date);
+        const newStart = new Date(end);
+        newStart.setDate(end.getDate() - 6);
+        setStartDate(newStart.toISOString().split("T")[0]);
+    };
 
-      if (machinesOnly) {
-        const machinesMap = await fetchMachinePortsMap();
-        const machinesList = Array.from(machinesMap.values());
-        return NextResponse.json({
-          success: true,
-          machines: machinesList,
-          total_machines: machinesList.length,
-        });
-      }
 
-      // Fetch all granularities
-      const [daily, hourly, minute] = await Promise.all([
-        fetchFromView("v_daily_shots", "shot_date", machines),
-        fetchFromView("v_hour_shots", "shot_hour", machines),
-        fetchFromView("v_minute_shots", "shot_minute", machines),
-      ]);
+    const fetchChartData = async () => {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const diff = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) + 1;
 
-      // ✅ Merge all data to a single array
-      const allData = [...daily, ...hourly, ...minute];
+        if (diff !== 7) {
+            setError("Date range must be exactly 7 days.");
+            return;
+        } else {
+            setError("");
+        }
 
-      return NextResponse.json({
-        success: true,
-        data: allData,
-        meta: {
-          total_records: allData.length,
-          machines_count: new Set(allData.map(d => d.machine_id)).size,
-        },
-      });
-    }
+        const { data, error } = await supabase
+            .from("mold_daily_summary")
+            .select("*")
+            .gte("operation_date", startDate)
+            .lte("operation_date", endDate)
+            .order("operation_date", { ascending: true });
 
-    return NextResponse.json(
-      { error: "Legacy endpoint not supported" },
-      { status: 400 }
+        if (error) {
+            console.error(error);
+            return;
+        }
+
+        const typedData = data as MoldDailySummary[];
+        if (!typedData) return;
+
+        // Get all unique molds in the date range
+        const allMolds = Array.from(new Set(typedData.map((d) => d.mold_name)));
+        setAvailableMolds(allMolds);
+
+
+        let moldsToShow = selectedMolds;
+
+        if (moldsToShow.length === 0) {
+            // If none selected → show top N performers
+            const totalsByMold: Record<string, number> = {};
+            typedData.forEach((d) => {
+                totalsByMold[d.mold_name] = (totalsByMold[d.mold_name] || 0) + d.total_products;
+            });
+
+            moldsToShow = Object.entries(totalsByMold)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, topN) // top N
+                .map(([mold]) => mold);
+        }
+
+        const labels = [...new Set(typedData.map((d) => d.operation_date))];
+
+        const datasets = moldsToShow.map((mold, idx) => ({
+            label: mold,
+            data: labels.map((date) => {
+                const record = typedData.find(
+                    (d) => d.mold_name === mold && d.operation_date === date
+                );
+                return record ? record.total_products : 0;
+            }),
+            borderColor: `hsl(${(idx * 60) % 360}, 70%, 50%)`,
+            backgroundColor: `hsl(${(idx * 60) % 360}, 70%, 70%)`,
+            tension: 0.3,
+        }));
+
+        setChartData({ labels, datasets });
+    };
+
+    useEffect(() => {
+        fetchChartData();
+    }, [startDate, endDate, selectedMolds, topN]);
+
+
+
+    const toggleMold = (name: string) => {
+        setSelectedMolds((prev) =>
+            prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name]
+        );
+    };
+
+    console.log(availableMolds.length)
+
+    return (
+        <div className="flex">
+            <Sidebar />
+            
+            <div className="flex-1 ml-0 md:ml-60">
+
+            <div className="top-0 left-0 md:left-10 w-full bg-[#00A527] text-white p-2.5 z-50">
+                    <p className="text-center font-medium"></p>
+            </div>
+
+            <div className="p-4 pt-6">
+                <h2 className="text-[1.5rem] ml-5 font-semibold mb-4">Mold Production Chart</h2>
+
+                {/*filtering by date - per week only/exactly*/}
+                <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
+                <h4 className="text-[1rem] ml-5">Select desired week: </h4>
+
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex items-center gap-2">
+                        <div>
+                            <label className="text-sm mr-2">Start Date</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => handleStartDateChange(e.target.value)}
+                                className="border rounded px-2 py-1 w-32"
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm mr-1">End Date</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => handleEndDateChange(e.target.value)}
+                                className="border rounded px-2 py-1 w-32"
+                            />
+                        </div>
+                    </div>
+                    </div>
+                </div>
+
+                {/* top n input - max 15 */}
+                {selectedMolds.length === 0 && (
+                    <div className="mb-4 flex items-center gap-4">
+                        <label className="text-sm ml-5">Show top </label>
+                            <input
+                            type="number"
+                            min={1}
+                            max={15}
+                            value={topN}
+                            onChange={(e) => setTopN(Number(e.target.value))}
+                            className="border rounded px-2 py-1 w-16 text-center"
+                        />
+                           <span className="text-sm">molds</span>
+                    </div>
+                )}
+
+                {error && <p className="text-red-500 mb-4">{error}</p>}
+
+                {/*chart*/}
+                {chartData ? (
+                    <div className="w-full mx-auto border border-[#222523]" style={{ height: '500px' }}>
+                        <Line
+                            data={chartData}
+                            options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { position: "bottom" },
+                                    datalabels: {
+                                        align: "end",      // place label outside the point
+                                        anchor: "start",   // anchor it near the start
+                                        clamp: true,
+                                        offset: 2,
+                                        font: { size: 15, weight: "bold" },
+                                        formatter: (value, ctx) => {
+                                            // Show the mold name only at the *first point* of each line
+                                            if (ctx.dataIndex === 0) {
+                                                return ctx.dataset.label;
+                                            }
+                                            return "";
+                                        },
+                                        color: (ctx) => String(ctx.dataset.borderColor ?? "black"),
+
+                                    },
+                                },
+                            }}
+                        />
+
+
+                    </div>
+                ) : (
+                    <p className="text-gray-500">Loading chart...</p>
+                )}
+
+                {/* search mold names */}
+                <div className="mt-5 flex flex-col gap-4">
+                <div className="relative w-full sm:w-64">
+                    <input
+                        type="text"
+                        placeholder="Search mold by name..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 pr-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+            <i className="fa fa-search" />
+          </span>
+                </div>
+
+                {/* mold selection */}
+                <div className="mb-4">
+                    <h4 className="font-semibold mb-2">
+                        Select molds in production(leave empty to show top performers):
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {availableMolds
+                            .filter((m) => m.toLowerCase().includes(searchTerm.toLowerCase()))
+                            .sort((a, b) => a.localeCompare(b))
+                            .slice(0, moldsToShowCount) // Limit number of displayed molds
+                            .map((mold) => (
+                                <label key={mold} className="flex items-center gap-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedMolds.includes(mold)}
+                                        onChange={() => toggleMold(mold)}
+                                    />
+                                    {mold}
+                                </label>
+                            ))}
+                    </div>
+
+                     {/* View More button */}
+                            {moldsToShowCount < availableMolds.length && (
+                                <div className="mt-4 flex justify-center">
+                                    <button
+                                        className="bg-[#00A527] hover:bg-green-700 text-gray-200 hover:text-white
+                                        focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg px-5 py-2.5 text-center"
+                                        onClick={() => setMoldsToShowCount((prev) => prev + 30)}
+                                    >
+                                        View More
+                                    </button>
+                                </div>
+                            )}
+                </div>
+                </div>
+            </div>
+            </div>
+            <SingleMoldChart
+                 moldName="10040"
+                 startDate="2020-09-24"
+                 endDate="2020-09-30"
+             />
+
+        </div>
+
+
+
+
     );
-  } catch (err: unknown) {
-    console.error("API error:", err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
-  }
 }
