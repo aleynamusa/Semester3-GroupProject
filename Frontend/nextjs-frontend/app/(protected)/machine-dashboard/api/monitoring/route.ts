@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
 type MachineInfo = {
   id: number;
@@ -38,8 +38,13 @@ function parseDate(s?: string) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+
+
+
+
+
 async function fetchMachinePortsMap(includeMolds: boolean = false) {
-  const { data, error } = await supabase
+  const { data, error } = await createClient()
     .from('machine_monitoring_poorten')
     .select('id, board, port, name, volgorde, visible');
   
@@ -53,7 +58,7 @@ async function fetchMachinePortsMap(includeMolds: boolean = false) {
   // Fetch current mold info if requested
   let moldMap = new Map<string, any>();
   if (includeMolds) {
-    const { data: moldData, error: moldError } = await supabase
+    const { data: moldData, error: moldError } = await createClient()
       .from('v_daily_shots')
       .select('board, port, mold_name, mold_description, is_swapped, swap_color, shot_date')
       .order('shot_date', { ascending: false });
@@ -119,7 +124,8 @@ async function getMachineMonitoringData(
 
     console.log(`Querying ${viewName} view for machines: ${selectedMachines.join(',')}, date range: ${startDateOnly} to ${endDateOnly}, granularity: ${granularity}`);
 
-    const query = supabase
+    // Query the appropriate pre-aggregated view - much faster!
+    const query = createClient()
       .from(viewName)
       .select(`
         ${timeColumn},
