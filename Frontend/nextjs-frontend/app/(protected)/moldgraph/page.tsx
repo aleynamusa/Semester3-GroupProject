@@ -13,7 +13,7 @@ import {
     ChartData,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { supabase } from "@/app/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/app/components/sidebar";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
@@ -70,7 +70,7 @@ export default function MoldProductionChart() {
             setError("");
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await createClient()
             .from("mold_daily_summary")
             .select("*")
             .gte("operation_date", startDate)

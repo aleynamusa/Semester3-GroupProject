@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
 
 
@@ -43,7 +43,7 @@ function parseDate(s?: string) {
 
 
 async function fetchMachinePortsMap() {
-  const { data, error } = await supabase
+  const { data, error } = await createClient()
     .from('machine_monitoring_poorten')
     .select('id, board, port, name, volgorde, visible');
   if (error) {
@@ -93,7 +93,7 @@ async function getMachineMonitoringData(startDate: string, endDate: string, sele
     console.log(`Querying ${viewName} view for machines: ${selectedMachines.join(',')}, date range: ${startDateOnly} to ${endDateOnly}, granularity: ${granularity}`);
 
     // Query the appropriate pre-aggregated view - much faster!
-    const query = supabase
+    const query = createClient()
       .from(viewName)
       .select(`
         ${timeColumn},
