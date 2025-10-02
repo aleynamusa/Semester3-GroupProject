@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ChartDataLabels from "chartjs-plugin-datalabels";
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -15,8 +16,18 @@ import {
 import { Line } from "react-chartjs-2";
 import { createClient } from "@/lib/supabase/client";
 import Sidebar from "@/app/components/sidebar";
+import SingleMoldChart from "@/app/components/SingleMoldChart";
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    ChartDataLabels
+);
 
 type MoldDailySummary = {
     mold_id: number;
@@ -127,11 +138,15 @@ export default function MoldProductionChart() {
         fetchChartData();
     }, [startDate, endDate, selectedMolds, topN]);
 
+
+
     const toggleMold = (name: string) => {
         setSelectedMolds((prev) =>
             prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name]
         );
     };
+
+    console.log(availableMolds.length)
 
     return (
         <div className="flex">
@@ -187,7 +202,6 @@ export default function MoldProductionChart() {
                             className="border rounded px-2 py-1 w-16 text-center"
                         />
                            <span className="text-sm">molds</span>
-                        
                     </div>
                 )}
 
@@ -196,28 +210,34 @@ export default function MoldProductionChart() {
                 {/*chart*/}
                 {chartData ? (
                     <div className="w-full mx-auto border border-[#222523]" style={{ height: '500px' }}>
-                    <Line
-                        data={chartData}
-                        options={{
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: {
-                                legend: { position: "bottom" },
-                                title: { display: true, text: "Products per Mold per Week" },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function (context) {
-                                            return `${context.dataset.label}: ${context.formattedValue}`;
+                        <Line
+                            data={chartData}
+                            options={{
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: {
+                                    legend: { position: "bottom" },
+                                    datalabels: {
+                                        align: "end",      // place label outside the point
+                                        anchor: "start",   // anchor it near the start
+                                        clamp: true,
+                                        offset: 2,
+                                        font: { size: 15, weight: "bold" },
+                                        formatter: (value, ctx) => {
+                                            // Show the mold name only at the *first point* of each line
+                                            if (ctx.dataIndex === 0) {
+                                                return ctx.dataset.label;
+                                            }
+                                            return "";
                                         },
+                                        color: (ctx) => String(ctx.dataset.borderColor ?? "black"),
+
                                     },
                                 },
-                            },
-                            scales: {
-                                x: { title: { display: true, text: "Date" } },
-                                y: { title: { display: true, text: "Total Products" } },
-                            },
-                        }}
-                    />
+                            }}
+                        />
+
+
                     </div>
                 ) : (
                     <p className="text-gray-500">Loading chart...</p>
@@ -241,7 +261,7 @@ export default function MoldProductionChart() {
                 {/* mold selection */}
                 <div className="mb-4">
                     <h4 className="font-semibold mb-2">
-                        Select molds (leave empty to show top performers):
+                        Select molds in production(leave empty to show top performers):
                     </h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                         {availableMolds
@@ -276,6 +296,16 @@ export default function MoldProductionChart() {
                 </div>
             </div>
             </div>
+            <SingleMoldChart
+                 moldName="10040"
+                 startDate="2020-09-24"
+                 endDate="2020-09-30"
+             />
+
         </div>
+
+
+
+
     );
 }
