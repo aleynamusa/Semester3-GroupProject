@@ -21,7 +21,7 @@ import {
 } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import { Line } from "react-chartjs-2";
-import { supabase } from "@/app/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 ChartJS.register(
     CategoryScale,
@@ -51,7 +51,7 @@ export default function SingleMoldChart({ moldName, startDate, endDate }: Props)
     const [chartData, setChartData] = useState<ChartData<"line", number[], string>>();
 
     const fetchData = async () => {
-        const { data, error } = await supabase
+        const { data, error } = await createClient()
             .from("mold_daily_summary")
             .select("*")
             .eq("mold_name", moldName)
