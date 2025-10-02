@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-// import MoldCard from "@/app/components/MoldCard"
-// import Pagination from '@/app/components/Pagination';
+import MoldCard from "@/app/components/MoldCard"
+import Pagination from '@/app/components/Pagination';
 
 type Mold = { id: number; name: string | null };
 type Totals = { moldId: number; totalOperations: number; avgCycleMs: number | null; firstOperationAt: string | null; lastOperationAt: string | null };
@@ -32,7 +32,7 @@ export default function MoldsPage() {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch('./api/molds/route', { cache: 'no-store' }); // returns array
+        const res = await fetch('/api/molds', { cache: 'no-store' }); // returns array
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         const items: Mold[] = Array.isArray(json) ? json : (json?.items ?? []); // safe either way
@@ -73,18 +73,16 @@ export default function MoldsPage() {
       {!loading && pageItems.length === 0 && <p className="mt-6">No molds yet.</p>}
 
       <section className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {/* {pageItems.map((m, idx) => (
+        {pageItems.map((m, idx) => (
           <MoldCard
             key={m.id}
             mold={m}
             index={(page - 1) * PAGE_SIZE + idx}   // keeps color cycle stable across pages
-            onTotals={openTotals}
-            onHistory={openHistory}
           />
-        ))} */}
+        ))}
       </section>
 
-      {/* <Pagination page={page} totalPages={totalPages} onChange={setPage} /> */}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
 
       {open === 'totals' && totals && (
         <Modal onClose={() => setOpen(null)}>

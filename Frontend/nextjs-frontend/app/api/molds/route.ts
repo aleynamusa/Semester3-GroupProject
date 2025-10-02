@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 import type { Database } from "@/app/types/database.types.ts";
 
 export const dynamic = 'force-dynamic'; // avoid caching in dev
@@ -7,7 +7,8 @@ export const dynamic = 'force-dynamic'; // avoid caching in dev
 type Mold = Database['public']['Views']['mold_names']['Row']; 
 
 export async function GET() {
-  const { data, error } = await createClient()
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from('mold_names') 
     .select('id, name')
     .order('id', { ascending: true });
