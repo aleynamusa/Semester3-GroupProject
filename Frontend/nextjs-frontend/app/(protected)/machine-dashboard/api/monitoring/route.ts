@@ -248,9 +248,91 @@ export async function GET(request: Request) {
       });
     }
 
+    // New endpoint for machine active status
+    if (endpoint === 'active-status') {
+      const boardPortParam = params.get('board_port_pairs');
+      const checkDate = params.get('date');
+      
+      if (!boardPortParam || !checkDate) {
+        return NextResponse.json({
+          success: false,
+          error: 'Missing required parameters: board_port_pairs and date'
+        }, { status: 400 });
+      }
+      
+      try {
+        // Parse board_port_pairs from JSON string like: [{"board":1,"port":1},{"board":1,"port":2}]
+        const boardPortPairs = JSON.parse(boardPortParam);
+        const activeStatus = await getMachineActiveStatus(boardPortPairs, checkDate);
+        
+        return NextResponse.json({
+          success: true,
+          active_status: activeStatus,
+          check_date: checkDate,
+          machines_checked: Object.keys(activeStatus).length
+        });
+      } catch {
+        return NextResponse.json({
+          success: false,
+          error: 'Invalid board_port_pairs format. Expected JSON array like: [{"board":1,"port":1},{"board":1,"port":2}]'
+        }, { status: 400 });
+      }
+    }
+
     return NextResponse.json({ error: 'Legacy endpoint not supported' }, { status: 400 });
   } catch (err: unknown) {
     console.error(err);
     return NextResponse.json({ error: String(err) }, { status: 500 });
+  }
+}
+
+async function getMachineActiveStatus(
+  boardPortPairs: Array<{board: number, port: number}>, 
+  checkDate: string
+): Promise<{[machineName: string]: boolean}> {
+  try {
+    // Get machine names from machine_monitoring_poorten table
+    const machinesMap = await fetchMachinePortsMap(false);
+
+    // Use v_daily_shots view instead of production_data table since that's where the actual data is
+    const { data: shotData, error } = await supabase
+      .from('v_daily_shots')
+      .select('board, port, shot_date')
+      .in('board', boardPortPairs.map(pair => pair.board))
+      .in('port', boardPortPairs.map(pair => pair.port))
+      .order('shot_date', { ascending: false }); // Get most recent dates first
+    
+    if (error) {
+      console.error('Error fetching shot data:', error);
+      return {};
+    }
+    
+    const result: {[machineName: string]: boolean} = {};
+    const checkDateObj = new Date(checkDate);
+    
+    // Process each board/port pair
+    for (const pair of boardPortPairs) {
+      const machineKey = `${pair.board}-${pair.port}`;
+      const machineInfo = machinesMap.get(machineKey);
+      const machineName = machineInfo?.name || `Machine ${pair.board}-${pair.port}`;
+      
+      // Find the most recent shot data for this machine
+      const machineShots = shotData
+        ?.filter(sd => sd.board === pair.board && sd.port === pair.port)
+        ?.sort((a, b) => new Date(b.shot_date).getTime() - new Date(a.shot_date).getTime())[0];
+      
+      if (machineShots && machineShots.shot_date) {
+        const lastShotDate = new Date(machineShots.shot_date);
+        result[machineName] = lastShotDate >= checkDateObj;
+      } else {
+        result[machineName] = false;
+      }
+    }
+    
+    return result;
+    
+  } catch (error) {
+    console.error('Error in getMachineActiveStatus:', error);
+    return {};
   }
 }

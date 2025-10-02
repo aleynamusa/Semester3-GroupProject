@@ -13,6 +13,7 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import 'chartjs-adapter-date-fns';
+import ActiveMachines from './ActiveMachines';
 
 ChartJS.register(
   CategoryScale,
@@ -124,6 +125,39 @@ export default function MachineMonitoringTable() {
   const [showTable, setShowTable] = useState(true);
   const [showCharts, setShowCharts] = useState(true);
   const [granularity, setGranularity] = useState<'minute' | 'hour' | 'day'>('day');
+  const [machineStatus, setMachineStatus] = useState<{ [key: string]: boolean }>({});
+
+  // Function to fetch machine active status
+  const fetchMachineStatus = async () => {
+    if (selectedMachines.length === 0) {
+      setMachineStatus({});
+      return;
+    }
+
+    try {
+      // Convert selected machines to board/port pairs
+      const boardPortPairs = selectedMachines.map(machineKey => {
+        const [board, port] = machineKey.split('-').map(Number);
+        return { board, port };
+      });
+
+      const boardPortParam = encodeURIComponent(JSON.stringify(boardPortPairs));
+      const url = `./machine-dashboard/api/monitoring?endpoint=active-status&board_port_pairs=${boardPortParam}&date=${endDate}`;
+
+      const response = await fetch(url);
+      const result = await response.json();
+
+      if (result.success) {
+        setMachineStatus(result.active_status);
+      } else {
+        console.error('Failed to fetch machine status:', result.error);
+        setMachineStatus({});
+      }
+    } catch (error) {
+      console.error('Error fetching machine status:', error);
+      setMachineStatus({});
+    }
+  };
 
   useEffect(() => {
     const fetchMachines = async () => {
@@ -215,6 +249,7 @@ export default function MachineMonitoringTable() {
       return;
     }
     await fetchData();
+    await fetchMachineStatus();
   };
 
     const formatTimestamp = (timestamp: string) => {
@@ -251,10 +286,7 @@ export default function MachineMonitoringTable() {
     return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
   };
 
-  const getRowStyle = (moldInfo?: MoldInfo) => {
-    // Return empty object to use default table styling
-    return {};
-  };
+
 
   const prepareChartData = () => {
     const machineColors = [
@@ -592,6 +624,15 @@ export default function MachineMonitoringTable() {
                 }
               }}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Machine Status Section */}
+      {Object.keys(machineStatus).length > 0 && (
+        <div className="mb-6">
+          <div className="max-w-lg">
+            <ActiveMachines machineStatus={machineStatus} />
           </div>
         </div>
       )}
