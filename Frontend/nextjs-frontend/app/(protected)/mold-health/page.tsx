@@ -32,7 +32,7 @@ export default function MoldsPage() {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch('./mold-health/api/molds/route', { cache: 'no-store' }); // returns array
+        const res = await fetch('./api/molds/route', { cache: 'no-store' }); // returns array
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         const items: Mold[] = Array.isArray(json) ? json : (json?.items ?? []); // safe either way
