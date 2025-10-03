@@ -58,3 +58,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Dependencies
+node_modules/
+
+# Local development
+supabase/
+

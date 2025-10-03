@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import MoldCard from "@/app/components/MoldCard"
 import Pagination from '@/app/components/Pagination';
 import Sidebar from '@/app/components/sidebar';
+import SearchBar from '@/app/components/SearchBar';
 
 
 type Mold = { id: number; name: string | null };
@@ -13,9 +14,12 @@ type HistoryResp = { moldId: number; items: HistoryItem[]; limit: number; offset
 export default function MoldsPage() {
   const PAGE_SIZE = 9;
 
-  const [molds, setMolds] = useState<Mold[]>([]);         // same as your code
+  const [molds, setMolds] = useState<Mold[]>([]);         
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const [selected, setSelected] = useState<Mold | null>(null);
+  const [searchMsg, setSearchMsg] = useState<string | null>(null);
 
   // pagination (client-side)
   const [page, setPage] = useState(1);
@@ -50,6 +54,23 @@ export default function MoldsPage() {
     })();
   }, []);
 
+  const handleSearch = (term: string) => {
+    const t = term.toLowerCase();
+    const match = molds.find((m) => (m.name ?? '').toLowerCase() === t);
+    if (match) {
+      setSelected(match);
+      setSearchMsg(null);
+    } else {
+      setSelected(null);
+      setSearchMsg(`No molds found with the name "${term}".`);
+    }
+  };
+  const clearSearch = () => {
+    setSelected(null);
+    setSearchMsg(null);
+  };
+
+
   // const openTotals = async (id: number) => {
   //   const r = await fetch(`/api/molds/${id}/total-ops`, { cache: 'no-store' });
   //   setTotals(await r.json());
@@ -71,6 +92,11 @@ export default function MoldsPage() {
                 <p className="text-center font-medium"></p>
         </div>
         <div className="p-4 pt-6">
+          {/*search b*/}
+          <div className="flex justify-end mb-4">
+            <SearchBar onSearch={handleSearch} onClear={clearSearch} />
+          </div>
+
             <h2 className="text-[1.5rem] ml-5 font-semibold mb-4">Mold Production Chart</h2>
         </div>
         
@@ -83,19 +109,43 @@ export default function MoldsPage() {
               {loading && <p className="mt-6">Loading…</p>}
               {!loading && pageItems.length === 0 && <p className="mt-6">No molds yet.</p>}
         
-              <section className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {pageItems.map((m, idx) => (
-                  <MoldCard
-                  key={m.id}
-                  mold={m}
-                  index={(page - 1) * PAGE_SIZE + idx}   // keeps color cycle stable across pages
-                  onTotals={() => {}}
-                  onHistory={() => {}}
-                  />
-                ))}
-              </section>
-        
-              <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+             {selected ? (
+  // 1) SEARCH MATCH FOUND → show only that one mold (no pagination)
+  <section className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <MoldCard
+      key={selected.id}
+      mold={selected}
+      index={0}
+      onTotals={() => {}}
+      onHistory={() => {}}
+    />
+  </section>
+) : (
+  <>
+    {/* 2) NO MATCH → show the message and hide the grid/pagination */}
+    {searchMsg && <p className="mt-6 text-neutral-700">{searchMsg}</p>}
+
+    {/* 3) NO SEARCH ACTIVE → show your original paginated grid */}
+    {!searchMsg && (
+      <>
+        <section className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {pageItems.map((m, idx) => (
+            <MoldCard
+              key={m.id}
+              mold={m}
+              index={(page - 1) * PAGE_SIZE + idx}
+              onTotals={() => {}}
+              onHistory={() => {}}
+            />
+          ))}
+        </section>
+
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+      </>
+    )}
+  </>
+)}
+
         
               {open === 'totals' && totals && (
                 <Modal onClose={() => setOpen(null)}>
