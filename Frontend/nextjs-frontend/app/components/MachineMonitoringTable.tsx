@@ -459,17 +459,17 @@ export default function MachineMonitoringTable() {
               <option value="minute">Per Minute</option>
             </select>
           </div>
-          <div className="ml-5 flex gap-3">
+          <div className="ml-3 flex gap-3">
             <button
               onClick={handleRefresh}
               disabled={selectedMachines.length === 0}
               className="px-4 py-2 bg-[#00A527] text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Refresh
+              Update
             </button>
             <button
               onClick={() => setShowCharts(!showCharts)}
-              className="px-4 py-2 bg-[#222523] text-white rounded-md hover:bg-gray-500"
+              className="ml-20 px-4 py-2 bg-[#222523] text-white rounded-md hover:bg-gray-500"
             >
               {showCharts ? 'Hide' : 'Show'} Charts
             </button>

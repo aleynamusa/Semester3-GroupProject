@@ -81,20 +81,21 @@ export default function MoldsPage() {
   return (
   <div className="flex">
     <Sidebar />
-    <div className="flex-1 ml-0 md:ml-60">
+    <div className="flex-1 ml-0 md:ml-60" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', border: 'var(--border)' }}>
         <div className="top-0 left-0 md:left-10 w-full bg-[#00A527] text-white p-2.5 z-50">
                 <p className="text-center font-medium"></p>
         </div>
         <div className="p-4 pt-6">
-            <h2 className="text-[1.5rem] ml-5 font-semibold mb-4">Mold Production Chart</h2>
-        </div>
-        
-         <main className="mx-auto max-w-6xl px-4 py-8 text-black">
-              <h1 className="text-4xl font-semibold text-white">Mold Health</h1>
-              <div className="mt-4 inline-block rounded-xl bg-neutral-200 px-4 py-2 text-lg font-medium">
+            <h2 className="text-[1.5rem] ml-5 font-semibold mb-4">Mold Health Dashboard</h2>
+            <div className="mt-4 ml-5 inline-block rounded-xl bg-neutral-200 px-4 py-2 text-lg font-medium text-black">
                 Molds in Production
               </div>
+        </div>
+      
         
+        
+         <main className="mx-auto max-w-6xl text-black">
+
               {loading && <p className="mt-6">Loading…</p>}
               {!loading && pageItems.length === 0 && <p className="mt-6">No molds yet.</p>}
         

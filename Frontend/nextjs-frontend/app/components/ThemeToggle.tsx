@@ -5,25 +5,30 @@ import { Sun, Moon } from 'lucide-react';
 export default function ThemeToggle() {
      const [isDark, setIsDark] = useState(true);
 
-    useEffect(() => {
-    // Apply dark mode by default on load
-    document.documentElement.classList.add('dark');
-    localStorage.setItem('theme', 'dark');
+// Load theme from localStorage
+  useEffect(() => {
+    const storedTheme = localStorage.getItem('theme');
+    if (storedTheme === 'dark') {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setIsDark(false);
+      document.documentElement.classList.remove('dark');
+    }
   }, []);
 
   const toggleTheme = () => {
-    if (isDark) {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-      setIsDark(false);
-    } else {
+    setIsDark(!isDark);
+    if (!isDark) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
-      setIsDark(true);
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   };
 
-  return (
+   return (
     <button
       onClick={toggleTheme}
       className="p-2 rounded-full bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200 hover:scale-105 transition"

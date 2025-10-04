@@ -28,7 +28,7 @@ export default function MoldCard({
   const color = COLORS[index % COLORS.length];
 
   return (
-    <article className={`${color} rounded-3xl p-6 shadow-sm`}>
+    <article className={`${color} rounded-3xl p-4 shadow-sm`}>
       { /* “Tag” with the mold label */ }
       <div className="mx-auto w-32 rounded-2xl bg-white text-center py-6 text-3xl font-semibold tracking-wide shadow">
         {mold.name ?? `M${mold.id}`}

@@ -9,27 +9,29 @@ import { createClient } from '@/lib/supabase/client';
 const Sidebar = () => {
     const pathname = usePathname();
 
-    // Fetch user email
-    const [userEmail, setUserEmail] = useState<string | null>(null);
+    // Fetch user username
+    const [username, setUsername] = useState<string | null>(null);
 
     useEffect(() => {
-    const supabase = createClient();
+  const supabase = createClient();
 
-    const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error('Failed to get user', error);
-        return;
-      }
-      const user = 'user' in data ? data.user : data;
+  const fetchUser = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) {
+      console.error('Failed to get user', error);
+      return;
+    }
 
-      if (user?.email) {
-        setUserEmail(user.email);
-      }
-    };
+    const user = 'user' in data ? data.user : data;
 
-    fetchUser();
-  }, []);
+    // Access username from user_metadata
+    if (user?.user_metadata?.username) {
+      setUsername(user.user_metadata.username);
+    }
+  };
+
+  fetchUser();
+}, []);
 
     const links = [
         // {
@@ -96,8 +98,8 @@ const Sidebar = () => {
 
         <div className="px-[4rem] pb-4 flex flex-col items-center">
           <SignOutButton />
-          <p className="mt-2 text-[0.7rem] font-semibold text-gray-100 dark:text-gray-100 text-center">
-            {userEmail ? userEmail : 'User'}
+          <p className="mt-2 text-[1rem] font-semibold text-gray-100 dark:text-gray-100 text-center">
+            {username ? username : 'User'}
           </p>
         </div>
       </div>
