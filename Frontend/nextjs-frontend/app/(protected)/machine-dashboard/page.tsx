@@ -15,13 +15,13 @@ export default function Home() {
         </div>
 
         {/* Page Content */}
-        <div className="p-4 pt-6">
+        <div className="p-4 pt-6" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
           <h2 className="text-[1.5rem] ml-5 font-semibold mb-4">
             Machine Monitoring Dashboard
           </h2>
 
           {/* Main Table */}
-          <div className="bg-black">
+          <div className="rounded-xl" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
             <MachineMonitoringTable />
           </div>
         </div>

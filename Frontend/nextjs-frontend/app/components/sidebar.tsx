@@ -1,13 +1,35 @@
 'use client'
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
-import logo from '../../public/yourlogo.png';
 import { SignOutButton } from './signoutButton';
+import ThemeToggle from './ThemeToggle';
+import { createClient } from '@/lib/supabase/client';
 
 const Sidebar = () => {
     const pathname = usePathname();
+
+    // Fetch user email
+    const [userEmail, setUserEmail] = useState<string | null>(null);
+
+    useEffect(() => {
+    const supabase = createClient();
+
+    const fetchUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error('Failed to get user', error);
+        return;
+      }
+      const user = 'user' in data ? data.user : data;
+
+      if (user?.email) {
+        setUserEmail(user.email);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
     const links = [
         // {
@@ -27,7 +49,7 @@ const Sidebar = () => {
         {
             name: 'Mold Health',
             href: '/mold-health',
-            icon: <i className="fa fa-bar-chart text-white" style={{fontSize: '24px'}}></i>
+            icon: <i className="fa fa-plus-square text-white" style={{fontSize: '26px'}}></i>
         }
       ];
 
@@ -39,16 +61,10 @@ const Sidebar = () => {
             ${open ? 'w-60' : 'w-0 md:w-60'} overflow-hidden`}
         >
 
-            <div className="flex flex-col h-full">
-
-                <div className="flex justify-center mt-6 mb-4">
-                    <div className="relative w-35 h-35">
-            <Image
-            src={logo}
-            fill
-            style={{ objectFit: "contain" }} alt="Default avatar" />
+        <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-600">
+          <ThemeToggle />
           </div>
-        </div>
 
         <nav className="mt-4 flex-1 px-2">
           <ul className="flex flex-col space-y-2">
@@ -78,8 +94,11 @@ const Sidebar = () => {
           </ul>
         </nav>
 
-        <div className="px-[4rem] pb-6">
+        <div className="px-[4rem] pb-4 flex flex-col items-center">
           <SignOutButton />
+          <p className="mt-2 text-[0.7rem] font-semibold text-gray-100 dark:text-gray-100 text-center">
+            {userEmail ? userEmail : 'User'}
+          </p>
         </div>
       </div>
     </div>

@@ -318,8 +318,8 @@ export default function MachineMonitoringTable() {
     const datasets = Object.entries(groupedData).map(([machineName, points], index) => ({
       label: machineName,
       data: addGapBreaks(points),
-      borderColor: machineColors[index % machineColors.length],
-      backgroundColor: machineColors[index % machineColors.length] + '20',
+      borderColor: `hsl(${(index * 60) % 360}, 70%, 50%)`,
+      backgroundColor: `hsl(${(index * 60) % 360}, 70%, 70%)`,
       tension: 0.1,
       spanGaps: false,
     }));
@@ -380,10 +380,10 @@ export default function MachineMonitoringTable() {
     <div className="p-6">
       <div className="mb-6">
         <div className="mb-4">
-          <label className="block text-[1rem] font-medium text-white mb-2">
+          <label className="block text-[1rem] font-medium mb-2">
             Select Machines
           </label>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-40 overflow-y-auto border rounded p-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2 max-h-60 overflow-y-auto border rounded p-2" style={{borderColor: 'var(--border)'}}>
             {machines.filter(m => m.visible).map((machine) => {
               const machineKey = `${machine.board}-${machine.port}`;
               return (
@@ -419,7 +419,7 @@ export default function MachineMonitoringTable() {
 
         <div className="flex gap-4 mb-4 items-center">
           <div className="flex flex-col">
-            <label htmlFor="startDate" className="block text-sm font-medium text-white">
+            <label htmlFor="startDate" className="block text-sm font-medium">
               Start Date
             </label>
             <input
@@ -427,12 +427,12 @@ export default function MachineMonitoringTable() {
               id="startDate"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="mt-1 block w-full border border-white rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-black rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-white"
             />
             <div className="text-xs text-gray-300 mt-1">Selected: {toEuropean(startDate)}</div>
           </div>
           <div className="flex flex-col">
-            <label htmlFor="endDate" className="block text-sm font-medium text-white">
+            <label htmlFor="endDate" className="block text-sm font-medium">
               End Date
             </label>
             <input
@@ -440,26 +440,26 @@ export default function MachineMonitoringTable() {
               id="endDate"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 block w-full border border-white rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              className="mt-1 block w-full border border-black rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-white"
             />
             <div className="text-xs text-gray-300 mt-1">Selected: {toEuropean(endDate)}</div>
           </div>
           <div className="mb-5 flex flex-col justify-between">
-            <label htmlFor="granularity" className="block text-sm font-medium text-white">
+            <label htmlFor="granularity" className="block text-sm font-medium">
               Time Granularity
             </label>
             <select
               id="granularity"
               value={granularity}
               onChange={(e) => setGranularity(e.target.value as 'minute' | 'hour' | 'day')}
-              className="mt-1 block w-full border border-white p-0.5 rounded-md shadow-sm bg-black text-white"
+              className="mt-1 block w-full border border-black p-0.5 rounded-md shadow-sm bg-white text-black dark:bg-black dark:text-white dark:border-white"
             >
               <option value="day">Daily</option>
               <option value="hour">Hourly</option>
               <option value="minute">Per Minute</option>
             </select>
           </div>
-          <div className="ml-20 flex gap-3">
+          <div className="ml-5 flex gap-3">
             <button
               onClick={handleRefresh}
               disabled={selectedMachines.length === 0}
@@ -482,23 +482,13 @@ export default function MachineMonitoringTable() {
           </div>
         </div>
 
-        <div className="flex gap-4 mb-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-green-100 border-l-4 border-green-500"></div>
-            <span>Normal Operation</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-red-100 border-l-4 border-red-500"></div>
-            <span>Mold Swapped</span>
-          </div>
-        </div>
       </div>
 
       {/* Charts Section */}
       {showCharts && data.length > 0 && (
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-4">Shot Count Trends</h2>
-          <div className="bg-black p-4 rounded-lg border border-[#222523]">
+          <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)'}}>
             <Line
               data={prepareChartData()}
               options={{
@@ -558,13 +548,11 @@ export default function MachineMonitoringTable() {
                         return ['─────────────────', 'No mold data'];
                       }
                     },
-                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
                     padding: 12,
-                    titleColor: '#fff',
-                    bodyColor: '#fff',
                     borderColor: '#666',
                     borderWidth: 1
-                  }
+                  },
+                  datalabels: { display: false } 
                 },
                 scales: {
                   x: {
@@ -600,55 +588,56 @@ export default function MachineMonitoringTable() {
       {showTable && (
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-4">Machine Monitoring Data</h2>
-          <div className="overflow-x-auto border border-gray-300 rounded-lg bg-black">
+          <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--border)' }}>
             <table className="min-w-full">
-          <thead className="bg-[#222523]">
+          <thead 
+          style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
             <tr>
-              <th className="px-6 py-3 border-b border-gray-300 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 border-b text-left text-xs font-medium uppercase tracking-wider">
                 Timestamp
               </th>
-              <th className="px-6 py-3 border-b border-gray-300 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 border-b text-left text-xs font-medium uppercase tracking-wider">
                 Machine
               </th>
-              <th className="px-6 py-3 border-b border-gray-300 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 border-b text-left text-xs font-medium uppercase tracking-wider">
                 Board/Port
               </th>
-              <th className="px-6 py-3 border-b border-gray-300 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 border-b text-left text-xs font-medium uppercase tracking-wider">
                 Shot Count
               </th>
-              <th className="px-6 py-3 border-b border-gray-300 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 border-b text-left text-xs font-medium uppercase tracking-wider">
                 Mold Info
               </th>
-              <th className="px-6 py-3 border-b border-gray-300 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+              <th className="px-6 py-3 border-b text-left text-xs font-medium uppercase tracking-wider">
                 Status
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-700">
+          <tbody className="divide-y">
             {data.map((item, index) => (
-              <tr key={index} className="hover:bg-gray-900">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+              <tr key={index} className="hover:bg-gray-900" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
                   {formatTimestamp(item.timestamp)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   {item.machine_name}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
                   {item.board}-{item.port}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
                   {item.shot_count}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-200">
+                <td className="px-6 py-4 text-sm">
                   {item.mold_info ? (
                     <div>
                       <div className="font-medium">{item.mold_info.name || 'Unknown'}</div>
                       {item.mold_info.description && (
-                        <div className="text-gray-400 text-xs">{item.mold_info.description}</div>
+                        <div className="text-xs">{item.mold_info.description}</div>
                       )}
                     </div>
                   ) : (
-                    <span className="text-gray-500">No mold data</span>
+                    <span className="">No mold data</span>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -661,7 +650,7 @@ export default function MachineMonitoringTable() {
                       {item.mold_info.is_swapped ? 'Swapped' : 'Normal'}
                     </span>
                   ) : (
-                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-700 text-gray-200">
+                    <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full">
                       No Data
                     </span>
                   )}
@@ -672,15 +661,15 @@ export default function MachineMonitoringTable() {
         </table>
         
         {data.length === 0 && (
-          <div className="text-center py-8 text-gray-400">
+          <div className="text-center py-8">
             No machine monitoring data available for the selected date range.
           </div>
         )}
           </div>
 
           {data.length > 0 && (
-            <div className="mt-6 p-4 bg-[#222523] rounded-lg text-gray-200">
-              <h3 className="text-lg font-medium mb-2 text-white">Summary</h3>
+            <div className="mt-6 p-4 rounded-lg border " style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', borderColor: 'var(--border)' }}>
+              <h3 className="text-lg font-medium mb-2">Summary</h3>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                 <div>
                   <span className="font-medium">Total Records:</span> {data.length}
@@ -701,7 +690,7 @@ export default function MachineMonitoringTable() {
               
               {/* Additional mold statistics */}
               <div className="mt-4 pt-4 border-t border-gray-600">
-                <h4 className="font-medium mb-2 text-white">Mold Status Breakdown</h4>
+                <h4 className="font-medium mb-2">Mold Status Breakdown</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 bg-green-500 rounded-full"></div>

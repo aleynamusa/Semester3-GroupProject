@@ -84,7 +84,7 @@ export default function SingleMoldChart({ moldName, startDate, endDate }: Props)
         fetchData();
     }, [moldName, startDate, endDate]);
 
-    return chartData ? (
+    return chartData && chartData.datasets[0].data.length > 0 ? (
         <div className="w-full h-[500px]">
             <Line
                 data={chartData}
@@ -110,6 +110,8 @@ export default function SingleMoldChart({ moldName, startDate, endDate }: Props)
             />
         </div>
     ) : (
-        <p>Loading chart...</p>
+        <div className="w-full h-[500px] flex items-center justify-center text-gray-500 font-medium">
+        No production data available for this week.
+        </div>
     );
 }

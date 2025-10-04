@@ -296,12 +296,6 @@ export default function MoldProductionChart() {
                 </div>
             </div>
             </div>
-            <SingleMoldChart
-                 moldName="10040"
-                 startDate="2020-09-24"
-                 endDate="2020-09-30"
-             />
-
         </div>
 
 

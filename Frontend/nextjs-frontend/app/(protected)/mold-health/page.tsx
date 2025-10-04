@@ -3,12 +3,14 @@ import { useEffect, useMemo, useState } from 'react';
 import MoldCard from "@/app/components/MoldCard"
 import Pagination from '@/app/components/Pagination';
 import Sidebar from '@/app/components/sidebar';
+import SingleMoldChart from '@/app/components/SingleMoldChart';
 
 
 type Mold = { id: number; name: string | null };
 type Totals = { moldId: number; totalOperations: number; avgCycleMs: number | null; firstOperationAt: string | null; lastOperationAt: string | null };
 type HistoryItem = { id: number; cycle_time_ms: number | null; status: string | null; created_at: string };
 type HistoryResp = { moldId: number; items: HistoryItem[]; limit: number; offset: number };
+type WeeklyGraph = { moldId: number; moldName: string; data: any[] };
 
 export default function MoldsPage() {
   const PAGE_SIZE = 9;
@@ -26,9 +28,10 @@ export default function MoldsPage() {
   }, [molds, page]);
 
   // modals
-  const [open, setOpen] = useState<'totals'|'history'|null>(null);
+  const [open, setOpen] = useState<'totals'|'history'| 'weeklyGraph'| null>(null);
   const [totals, setTotals] = useState<Totals | null>(null);
   const [history, setHistory] = useState<HistoryResp | null>(null);
+  const [weeklyGraph, setWeeklyGraph] = useState<WeeklyGraph | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -62,9 +65,21 @@ export default function MoldsPage() {
   //   setOpen('history');
   // };
 
+  const openWeeklyGraph = (id: number) => {
+    const mold = molds.find(m => m.id === id);
+    if (!mold) return;
+    setWeeklyGraph({ 
+      moldId: id, 
+      moldName: mold.name ?? `M${mold.id}`, 
+      data: [] 
+    });
+    setOpen('weeklyGraph');
+  }
+
   if (error) return <p className="mt-6 text-red-600">Error: {error}</p>;
 
-  return (<div className="flex">
+  return (
+  <div className="flex">
     <Sidebar />
     <div className="flex-1 ml-0 md:ml-60">
         <div className="top-0 left-0 md:left-10 w-full bg-[#00A527] text-white p-2.5 z-50">
@@ -75,7 +90,7 @@ export default function MoldsPage() {
         </div>
         
          <main className="mx-auto max-w-6xl px-4 py-8 text-black">
-              <h1 className="text-4xl font-semibold">Mold Health</h1>
+              <h1 className="text-4xl font-semibold text-white">Mold Health</h1>
               <div className="mt-4 inline-block rounded-xl bg-neutral-200 px-4 py-2 text-lg font-medium">
                 Molds in Production
               </div>
@@ -91,6 +106,7 @@ export default function MoldsPage() {
                   index={(page - 1) * PAGE_SIZE + idx}   // keeps color cycle stable across pages
                   onTotals={() => {}}
                   onHistory={() => {}}
+                  onWeeklyGraph={openWeeklyGraph}
                   />
                 ))}
               </section>
@@ -121,6 +137,17 @@ export default function MoldsPage() {
                       ))}
                     </ul>
                   </div>
+                </Modal>
+              )}
+
+              {open === 'weeklyGraph' && weeklyGraph && (
+                <Modal onClose={() => setOpen(null)}>
+                  <h3 className="text-xl font-semibold mb-3">Current Week Production Graph for Mold {weeklyGraph.moldName}</h3>
+                  <SingleMoldChart 
+                  moldName={weeklyGraph.moldName} 
+                  startDate="2020-09-24"
+                 endDate="2020-09-30"
+                   />
                 </Modal>
               )}
             </main>
