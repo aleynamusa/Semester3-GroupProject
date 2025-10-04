@@ -7,6 +7,29 @@ import Sidebar from '@/app/components/sidebar';
 import SearchBar from '@/app/components/SearchBar';
 import TotalOpsPop from "@/app/components/TotalOpsPop";
 
+//stupid time zones
+const fmtDateTimeUTC = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'UTC',
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
+const fmtDateUTC = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'UTC',
+  dateStyle: 'medium',
+});
+
+function formatDateTimeUTC(value?: string | null) {
+  if (!value) return '—';
+  return fmtDateTimeUTC.format(new Date(value));
+}
+
+function formatDateUTC(value?: string | null) {
+  if (!value) return '—';
+  return fmtDateUTC.format(new Date(value));
+}
+
+
 type Mold = { id: number; name: string | null };
 type Totals = {
   moldId: number;
@@ -171,9 +194,9 @@ export default function MoldsPage() {
               <div className="max-h-80 overflow-auto">
                 <ul className="space-y-1 text-sm">
                   {history.items.map((x) => (
-                    <li key={x.id} className="border-b py-1">
-                      {new Date(x.created_at).toLocaleString()} — {x.status ?? 'ok'} — {x.cycle_time_ms ?? '—'} ms
-                    </li>
+                   <li key={x.id} className="border-b py-1">
+                     {formatDateTimeUTC(x.created_at)} — {x.status ?? 'ok'} — {x.cycle_time_ms ?? '—'} ms
+                  </li>
                   ))}
                 </ul>
               </div>
