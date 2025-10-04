@@ -1,29 +1,57 @@
+// app/api/molds/[id]/total-ops/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { create } from "domain";
 
 export async function GET(
   _req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const id = Number((await params).id);
+  const moldId = Number(params.id);
+  if (!Number.isFinite(moldId) || moldId <= 0) {
+    return NextResponse.json({ error: "Missing or invalid mold ID" }, { status: 400 });
+  }
 
-  // count occurrences as primary
   const supabase = await createClient();
-  const { count: c1, error: e1 } = await supabase
-    .from("production_data")
-    .select("id", { count: "exact", head: true })
-    .eq("treeview_id", id);
 
-  if (e1) return NextResponse.json({ error: e1.message }, { status: 500 });
+  const { data, error } = await supabase
+    .from("mold_daily_summary")
+    .select("mold_id, mold_name, operation_date, total_products")
+    .eq("mold_id", moldId);
 
-  // count occurrences as secondary
-  const { count: c2, error: e2 } = await supabase
-    .from("production_data")
-    .select("id", { count: "exact", head: true })
-    .eq("treeview2_id", id);
+  if (error) {
+    console.error("Supabase error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  if (e2) return NextResponse.json({ error: e2.message }, { status: 500 });
+  if (!data || data.length === 0) {
+    return NextResponse.json({
+      moldId,
+      moldName: null,
+      totalOperations: 0,
+      firstOperationAt: null,
+      lastOperationAt: null,
+      avgCycleMs: null,
+    });
+  }
 
-  return NextResponse.json({ totalOps: (c1 ?? 0) + (c2 ?? 0) });
+  const totalOperations = data.reduce((acc, r) => acc + (r.total_products ?? 0), 0);
+
+  let firstOperationAt: string | null = null;
+  let lastOperationAt: string | null = null;
+  for (const row of data) {
+    const d = new Date(row.operation_date as any);
+    if (!firstOperationAt || d < new Date(firstOperationAt)) firstOperationAt = d.toISOString();
+    if (!lastOperationAt || d > new Date(lastOperationAt)) lastOperationAt = d.toISOString();
+  }
+
+  const moldName = data[0]?.mold_name ?? null;
+
+  return NextResponse.json({
+    moldId,
+    moldName,
+    totalOperations,
+    firstOperationAt,
+    lastOperationAt,
+    avgCycleMs: null,
+  });
 }

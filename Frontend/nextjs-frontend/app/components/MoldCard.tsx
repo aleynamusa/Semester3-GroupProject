@@ -20,7 +20,7 @@ export default function MoldCard({
 }: {
   mold: Mold;
   index: number;          
-  onTotals: (id: number) => void;
+onTotals: (id: number) => void;
   onHistory: (id: number) => void;
 }) {
   const color = COLORS[index % COLORS.length];
