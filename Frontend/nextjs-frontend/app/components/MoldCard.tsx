@@ -17,13 +17,15 @@ export default function MoldCard({
   index,
   onTotals,
   onHistory,
-  onWeeklyGraph,
+  onCurrentWeekGraphPerDay,
+  onTotalGraphPerWeek
 }: {
   mold: Mold;
   index: number;          
   onTotals: (id: number) => void;
   onHistory: (id: number) => void;
-  onWeeklyGraph: (id: number) => void;
+  onCurrentWeekGraphPerDay: (id: number) => void;
+  onTotalGraphPerWeek: (id: number) => void;
 }) {
   const color = COLORS[index % COLORS.length];
 
@@ -50,10 +52,17 @@ export default function MoldCard({
         </button>
 
         <button
-          onClick={() => onWeeklyGraph(mold.id)}
+          onClick={() => onCurrentWeekGraphPerDay(mold.id)}
           className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
         >
-          Current Week Production Graph
+          Current Week Production Graph per Day
+        </button>
+
+        <button
+          onClick={() => onTotalGraphPerWeek(mold.id)}
+          className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
+        >
+          Total Production Graph per Week
         </button>
       </div>
     </article>

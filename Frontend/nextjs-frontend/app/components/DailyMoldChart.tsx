@@ -7,7 +7,7 @@
 //     endDate="2020-09-30"
 // />
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -47,10 +47,15 @@ type Props = {
     endDate: string;
 };
 
-export default function SingleMoldChart({ moldName, startDate, endDate }: Props) {
+export default function DailyMoldChart({ moldName, startDate, endDate }: Props) {
     const [chartData, setChartData] = useState<ChartData<"line", number[], string>>();
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
+            setLoading(true);
+            setError(null);
+
         const { data, error } = await createClient()
             .from("mold_daily_summary")
             .select("*")
@@ -59,13 +64,12 @@ export default function SingleMoldChart({ moldName, startDate, endDate }: Props)
             .lte("operation_date", endDate)
             .order("operation_date", { ascending: true });
 
-        if (error) {
-            console.error(error);
-            return;
-        }
-
         const typedData = data as MoldDailySummary[];
-        if (!typedData || typedData.length === 0) return;
+        if (!typedData || typedData.length === 0) {
+            setError("No data found for this mold and date range");
+            setLoading(false);
+            return;
+        };
 
         const labels = typedData.map((d) => d.operation_date);
         const dataset = {
@@ -78,11 +82,16 @@ export default function SingleMoldChart({ moldName, startDate, endDate }: Props)
         };
 
         setChartData({ labels, datasets: [dataset] });
-    };
-
+        setLoading(false);
+    }, [moldName, startDate, endDate]);
+    
+    
     useEffect(() => {
         fetchData();
     }, [moldName, startDate, endDate]);
+
+    if (loading) return <p>Loading chart...</p>;
+    if (error) return <p className="text-red-500">{error}</p>;
 
     return chartData && chartData.datasets[0].data.length > 0 ? (
         <div className="w-full h-[500px]">
