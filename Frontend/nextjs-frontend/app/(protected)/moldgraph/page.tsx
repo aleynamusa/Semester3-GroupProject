@@ -169,7 +169,7 @@ export default function MoldProductionChart() {
 
                     {/*filtering by date - per week only/exactly*/}
                     <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4">
-                        <h4 className="text-[1rem] ml-5">Select desired week: </h4>
+                        <h4 className="text-[1rem] ml-5">Select desired range: </h4>
 
                         <div className="flex flex-col sm:flex-row gap-4">
                             <div className="flex items-center gap-2">
