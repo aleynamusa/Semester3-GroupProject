@@ -107,6 +107,7 @@ interface Machine {
   } | null;
 }
 
+
 export default function MachineMonitoringTable() {
   const [data, setData] = useState<MachineDataPoint[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -124,6 +125,8 @@ export default function MachineMonitoringTable() {
   const [showTable, setShowTable] = useState(true);
   const [showCharts, setShowCharts] = useState(true);
   const [granularity, setGranularity] = useState<'minute' | 'hour' | 'day'>('day');
+
+
 
   useEffect(() => {
     const fetchMachines = async () => {
@@ -200,6 +203,7 @@ export default function MachineMonitoringTable() {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     setLoading(false);
@@ -479,6 +483,7 @@ export default function MachineMonitoringTable() {
             >
               {showTable ? 'Hide' : 'Show'} Table
             </button>
+
           </div>
         </div>
 
@@ -721,6 +726,8 @@ export default function MachineMonitoringTable() {
           )}
         </div>
       )}
+
+
     </div>
   );
 }

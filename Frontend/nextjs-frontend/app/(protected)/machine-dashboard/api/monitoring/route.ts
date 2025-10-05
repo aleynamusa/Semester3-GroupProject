@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/client';
 
+
 type MachineInfo = {
   id: number;
   board: number;
@@ -31,6 +32,7 @@ type MachineDataPoint = {
     swap_color?: string;
   };
 };
+
 
 function parseDate(s?: string) {
   if (!s) return null;
@@ -193,6 +195,8 @@ async function getMachineMonitoringData(
   }
 }
 
+
+
 export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
@@ -253,6 +257,8 @@ export async function GET(request: Request) {
         }
       });
     }
+
+
 
     return NextResponse.json({ error: 'Legacy endpoint not supported' }, { status: 400 });
   } catch (err: unknown) {

@@ -1,0 +1,1188 @@
+commit 4828f51d9b20d638dd33073df3f71927dcbe0085
+Author: DeltazorZz <vetka.adi@gmail.com>
+Date:   Thu Oct 2 14:29:48 2025 +0200
+
+    Ama branch merge
+---
+ .../app/(protected)/mold-health/api/molds/route.ts |  18 +
+ .../app/(protected)/mold-health/page.tsx           | 130 ++++
+ .../nextjs-frontend/app/components/MoldCard.tsx    |  52 ++
+ .../nextjs-frontend/app/components/Pagination.tsx  |  49 ++
+ .../app/components/SingleMoldChart.tsx             |   4 +-
+ .../nextjs-frontend/app/components/sidebar.tsx     |   7 +-
+ .../nextjs-frontend/app/types/database.types.ts    | 837 +++++++++++++++++++++
+ Frontend/nextjs-frontend/lib/supabase/server.ts    |   3 -
+ 8 files changed, 1094 insertions(+), 6 deletions(-)
+
+diff --git a/Frontend/nextjs-frontend/app/(protected)/mold-health/api/molds/route.ts b/Frontend/nextjs-frontend/app/(protected)/mold-health/api/molds/route.ts
+new file mode 100644
+index 0000000..5b4ba0c
+--- /dev/null
++++ b/Frontend/nextjs-frontend/app/(protected)/mold-health/api/molds/route.ts
+@@ -0,0 +1,18 @@
++// app/api/molds/route.ts
++import { NextResponse } from 'next/server';
++import { createClient } from '@/lib/supabase/client';
++import type { Database } from "@/app/types/database.types.ts";
++
++export const dynamic = 'force-dynamic'; // avoid caching in dev
++
++type Mold = Database['public']['Views']['mold_names']['Row']; 
++
++export async function GET() {
++  const { data, error } = await createClient()
++    .from('mold_names') 
++    .select('id, name')
++    .order('id', { ascending: true });
++
++  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
++  return NextResponse.json((data ?? []) as Pick<Mold, 'id'|'name'>[]);
++}
+diff --git a/Frontend/nextjs-frontend/app/(protected)/mold-health/page.tsx b/Frontend/nextjs-frontend/app/(protected)/mold-health/page.tsx
+new file mode 100644
+index 0000000..222d04f
+--- /dev/null
++++ b/Frontend/nextjs-frontend/app/(protected)/mold-health/page.tsx
+@@ -0,0 +1,130 @@
++'use client';
++import { useEffect, useMemo, useState } from 'react';
++// import MoldCard from "@/app/components/MoldCard"
++// import Pagination from '@/app/components/Pagination';
++
++type Mold = { id: number; name: string | null };
++type Totals = { moldId: number; totalOperations: number; avgCycleMs: number | null; firstOperationAt: string | null; lastOperationAt: string | null };
++type HistoryItem = { id: number; cycle_time_ms: number | null; status: string | null; created_at: string };
++type HistoryResp = { moldId: number; items: HistoryItem[]; limit: number; offset: number };
++
++export default function MoldsPage() {
++  const PAGE_SIZE = 9;
++
++  const [molds, setMolds] = useState<Mold[]>([]);         // same as your code
++  const [error, setError] = useState<string | null>(null);
++  const [loading, setLoading] = useState(false);
++
++  // pagination (client-side)
++  const [page, setPage] = useState(1);
++  const totalPages = Math.max(1, Math.ceil((molds?.length ?? 0) / PAGE_SIZE));
++  const pageItems = useMemo(() => {
++    const start = (page - 1) * PAGE_SIZE;
++    return (molds ?? []).slice(start, start + PAGE_SIZE);
++  }, [molds, page]);
++
++  // modals
++  const [open, setOpen] = useState<'totals'|'history'|null>(null);
++  const [totals, setTotals] = useState<Totals | null>(null);
++  const [history, setHistory] = useState<HistoryResp | null>(null);
++
++  useEffect(() => {
++    (async () => {
++      try {
++        setLoading(true);
++        const res = await fetch('./mold-health/api/molds/route', { cache: 'no-store' }); // returns array
++        if (!res.ok) throw new Error(`HTTP ${res.status}`);
++        const json = await res.json();
++        const items: Mold[] = Array.isArray(json) ? json : (json?.items ?? []); // safe either way
++        setMolds(items);
++        setPage(1); // reset to first page when data changes
++        setError(null);
++      } catch (e: any) {
++        setError(e.message ?? 'Failed to load');
++        setMolds([]);
++      } finally {
++        setLoading(false);
++      }
++    })();
++  }, []);
++
++  // const openTotals = async (id: number) => {
++  //   const r = await fetch(`/api/molds/${id}/total-ops`, { cache: 'no-store' });
++  //   setTotals(await r.json());
++  //   setOpen('totals');
++  // };
++
++  // const openHistory = async (id: number) => {
++  //   const r = await fetch(`/api/molds/${id}/history?limit=30`, { cache: 'no-store' });
++  //   setHistory(await r.json());
++  //   setOpen('history');
++  // };
++
++  if (error) return <p className="mt-6 text-red-600">Error: {error}</p>;
++
++  return (
++    <main className="mx-auto max-w-6xl px-4 py-8">
++      <h1 className="text-4xl font-semibold">Mold Health</h1>
++      <div className="mt-4 inline-block rounded-xl bg-neutral-200 px-4 py-2 text-lg font-medium">
++        Molds in Production
++      </div>
++
++      {loading && <p className="mt-6">Loading…</p>}
++      {!loading && pageItems.length === 0 && <p className="mt-6">No molds yet.</p>}
++
++      <section className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
++        {/* {pageItems.map((m, idx) => (
++          <MoldCard
++            key={m.id}
++            mold={m}
++            index={(page - 1) * PAGE_SIZE + idx}   // keeps color cycle stable across pages
++            onTotals={openTotals}
++            onHistory={openHistory}
++          />
++        ))} */}
++      </section>
++
++      {/* <Pagination page={page} totalPages={totalPages} onChange={setPage} /> */}
++
++      {open === 'totals' && totals && (
++        <Modal onClose={() => setOpen(null)}>
++          <h3 className="text-xl font-semibold mb-2">Totals for mold {totals.moldId}</h3>
++          <ul className="space-y-1 text-sm">
++            <li>Operations: <b>{totals.totalOperations}</b></li>
++            <li>Avg cycle (ms): <b>{totals.avgCycleMs ?? '—'}</b></li>
++            <li>First op: {totals.firstOperationAt ? new Date(totals.firstOperationAt).toLocaleString() : '—'}</li>
++            <li>Last op: {totals.lastOperationAt ? new Date(totals.lastOperationAt).toLocaleString() : '—'}</li>
++          </ul>
++        </Modal>
++      )}
++
++      {open === 'history' && history && (
++        <Modal onClose={() => setOpen(null)}>
++          <h3 className="text-xl font-semibold mb-3">History for mold {history.moldId}</h3>
++          <div className="max-h-80 overflow-auto">
++            <ul className="space-y-1 text-sm">
++              {history.items.map((x) => (
++                <li key={x.id} className="border-b py-1">
++                  {new Date(x.created_at).toLocaleString()} — {x.status ?? 'ok'} — {x.cycle_time_ms ?? '—'} ms
++                </li>
++              ))}
++            </ul>
++          </div>
++        </Modal>
++      )}
++    </main>
++  );
++}
++
++function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
++  return (
++    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
++      <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
++        <div className="flex justify-end">
++          <button onClick={onClose} className="rounded-md px-2 py-1 text-sm hover:bg-neutral-100">✕</button>
++        </div>
++        {children}
++      </div>
++    </div>
++  );
++}
+diff --git a/Frontend/nextjs-frontend/app/components/MoldCard.tsx b/Frontend/nextjs-frontend/app/components/MoldCard.tsx
+new file mode 100644
+index 0000000..61ff045
+--- /dev/null
++++ b/Frontend/nextjs-frontend/app/components/MoldCard.tsx
+@@ -0,0 +1,52 @@
++'use client';
++
++type Mold = { id: number; name: string | null };
++
++const COLORS = [
++  'bg-slate-200',   
++  'bg-stone-200',
++  'bg-zinc-200',
++  'bg-slate-300',
++  'bg-stone-300',
++  'bg-zinc-300',
++];
++
++
++export default function MoldCard({
++  mold,
++  index,
++  onTotals,
++  onHistory,
++}: {
++  mold: Mold;
++  index: number;          
++  onTotals: (id: number) => void;
++  onHistory: (id: number) => void;
++}) {
++  const color = COLORS[index % COLORS.length];
++
++  return (
++    <article className={`${color} rounded-3xl p-6 shadow-sm`}>
++      { /* “Tag” with the mold label */ }
++      <div className="mx-auto w-32 rounded-2xl bg-white text-center py-6 text-3xl font-semibold tracking-wide shadow">
++        {mold.name ?? `M${mold.id}`}
++      </div>
++
++      <div className="mt-6 grid gap-3">
++        <button
++          onClick={() => onTotals(mold.id)}
++          className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
++        >
++          Total number of operations
++        </button>
++
++        <button
++          onClick={() => onHistory(mold.id)}
++          className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
++        >
++          Historical overview
++        </button>
++      </div>
++    </article>
++  );
++}
+diff --git a/Frontend/nextjs-frontend/app/components/Pagination.tsx b/Frontend/nextjs-frontend/app/components/Pagination.tsx
+new file mode 100644
+index 0000000..f18839c
+--- /dev/null
++++ b/Frontend/nextjs-frontend/app/components/Pagination.tsx
+@@ -0,0 +1,49 @@
++'use client';
++
++export default function Pagination({
++  page,
++  totalPages,
++  onChange,
++}: {
++  page: number;
++  totalPages: number;
++  onChange: (p: number) => void;
++}) {
++  if (totalPages <= 1) return null;
++
++  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
++
++  return (
++    <div className="mt-8 flex items-center justify-center gap-2">
++      <button
++        onClick={() => onChange(Math.max(1, page - 1))}
++        disabled={page === 1}
++        className="rounded-lg border px-3 py-2 text-sm disabled:opacity-40"
++      >
++        Prev
++      </button>
++
++      <div className="flex gap-1">
++        {pages.map((p) => (
++          <button
++            key={p}
++            onClick={() => onChange(p)}
++            className={`rounded-lg px-3 py-2 text-sm border ${
++              p === page ? 'bg-black text-white' : 'bg-white'
++            }`}
++          >
++            {p}
++          </button>
++        ))}
++      </div>
++
++      <button
++        onClick={() => onChange(Math.min(totalPages, page + 1))}
++        disabled={page === totalPages}
++        className="rounded-lg border px-3 py-2 text-sm disabled:opacity-40"
++      >
++        Next
++      </button>
++    </div>
++  );
++}
+diff --git a/Frontend/nextjs-frontend/app/components/SingleMoldChart.tsx b/Frontend/nextjs-frontend/app/components/SingleMoldChart.tsx
+index aab5c6e..65e6fc6 100644
+--- a/Frontend/nextjs-frontend/app/components/SingleMoldChart.tsx
++++ b/Frontend/nextjs-frontend/app/components/SingleMoldChart.tsx
+@@ -21,7 +21,7 @@ import {
+ } from "chart.js";
+ import ChartDataLabels from "chartjs-plugin-datalabels";
+ import { Line } from "react-chartjs-2";
+-import { supabase } from "@/app/lib/supabase";
++import { createClient } from "@/lib/supabase/client";
+ 
+ ChartJS.register(
+     CategoryScale,
+@@ -51,7 +51,7 @@ export default function SingleMoldChart({ moldName, startDate, endDate }: Props)
+     const [chartData, setChartData] = useState<ChartData<"line", number[], string>>();
+ 
+     const fetchData = async () => {
+-        const { data, error } = await supabase
++        const { data, error } = await createClient()
+             .from("mold_daily_summary")
+             .select("*")
+             .eq("mold_name", moldName)
+diff --git a/Frontend/nextjs-frontend/app/components/sidebar.tsx b/Frontend/nextjs-frontend/app/components/sidebar.tsx
+index 690d247..e7e83ec 100644
+--- a/Frontend/nextjs-frontend/app/components/sidebar.tsx
++++ b/Frontend/nextjs-frontend/app/components/sidebar.tsx
+@@ -23,8 +23,13 @@ const Sidebar = () => {
+             name: 'Mold Graph',
+             href: '/moldgraph',
+             icon: <i className="fa fa-bar-chart text-white" style={{fontSize: '24px'}}></i>
++        },
++        {
++            name: 'Mold Health',
++            href: '/mold-health',
++            icon: <i className="fa fa-bar-chart text-white" style={{fontSize: '24px'}}></i>
+         }
+-    ];
++      ];
+ 
+     const [open, setOpen] = useState(false);
+ 
+diff --git a/Frontend/nextjs-frontend/app/types/database.types.ts b/Frontend/nextjs-frontend/app/types/database.types.ts
+new file mode 100644
+index 0000000..3982b50
+--- /dev/null
++++ b/Frontend/nextjs-frontend/app/types/database.types.ts
+@@ -0,0 +1,837 @@
++export type Json =
++  | string
++  | number
++  | boolean
++  | null
++  | { [key: string]: Json | undefined }
++  | Json[]
++
++export type Database = {
++ 
++  __InternalSupabase: {
++    PostgrestVersion: "13.0.4"
++  }
++  graphql_public: {
++    Tables: {
++      [_ in never]: never
++    }
++    Views: {
++      [_ in never]: never
++    }
++    Functions: {
++      graphql: {
++        Args: {
++          extensions?: Json
++          operationName?: string
++          query?: string
++          variables?: Json
++        }
++        Returns: Json
++      }
++    }
++    Enums: {
++      [_ in never]: never
++    }
++    CompositeTypes: {
++      [_ in never]: never
++    }
++  }
++  public: {
++    Tables: {
++      machine_monitoring_poorten: {
++        Row: {
++          board: number
++          id: number
++          name: string | null
++          port: number
++          visible: boolean
++          volgorde: number
++        }
++        Insert: {
++          board?: number
++          id?: number
++          name?: string | null
++          port?: number
++          visible?: boolean
++          volgorde?: number
++        }
++        Update: {
++          board?: number
++          id?: number
++          name?: string | null
++          port?: number
++          visible?: boolean
++          volgorde?: number
++        }
++        Relationships: []
++      }
++      monitoring_data_202009: {
++        Row: {
++          board: number
++          code: number
++          code2: number
++          com: number
++          datum: string | null
++          id: number
++          mac_address: string
++          port: number
++          previous_shot_id: number | null
++          shot_time: number
++          timestamp: string | null
++        }
++        Insert: {
++          board?: number
++          code?: number
++          code2?: number
++          com?: number
++          datum?: string | null
++          id?: number
++          mac_address?: string
++          port?: number
++          previous_shot_id?: number | null
++          shot_time?: number
++          timestamp?: string | null
++        }
++        Update: {
++          board?: number
++          code?: number
++          code2?: number
++          com?: number
++          datum?: string | null
++          id?: number
++          mac_address?: string
++          port?: number
++          previous_shot_id?: number | null
++          shot_time?: number
++          timestamp?: string | null
++        }
++        Relationships: [
++          {
++            foreignKeyName: "fk_monitoring_board_port"
++            columns: ["board", "port"]
++            isOneToOne: false
++            referencedRelation: "machine_monitoring_poorten"
++            referencedColumns: ["board", "port"]
++          },
++        ]
++      }
++      production_data: {
++        Row: {
++          amount: number
++          board: number
++          description: string
++          end_date: string | null
++          end_time: string
++          id: number
++          name: string
++          port: number
++          start_date: string
++          start_time: string
++          treeview_id: number | null
++          treeview2_id: number
++        }
++        Insert: {
++          amount?: number
++          board?: number
++          description: string
++          end_date?: string | null
++          end_time?: string
++          id?: number
++          name?: string
++          port?: number
++          start_date: string
++          start_time?: string
++          treeview_id?: number | null
++          treeview2_id?: number
++        }
++        Update: {
++          amount?: number
++          board?: number
++          description?: string
++          end_date?: string | null
++          end_time?: string
++          id?: number
++          name?: string
++          port?: number
++          start_date?: string
++          start_time?: string
++          treeview_id?: number | null
++          treeview2_id?: number
++        }
++        Relationships: [
++          {
++            foreignKeyName: "fk_production_board_port"
++            columns: ["board", "port"]
++            isOneToOne: false
++            referencedRelation: "machine_monitoring_poorten"
++            referencedColumns: ["board", "port"]
++          },
++          {
++            foreignKeyName: "production_data_treeview_id_fkey"
++            columns: ["treeview_id"]
++            isOneToOne: false
++            referencedRelation: "mold_names"
++            referencedColumns: ["id"]
++          },
++          {
++            foreignKeyName: "production_data_treeview_id_fkey"
++            columns: ["treeview_id"]
++            isOneToOne: false
++            referencedRelation: "treeview"
++            referencedColumns: ["id"]
++          },
++        ]
++      }
++      tellerbasis: {
++        Row: {
++          abbreviation: string
++          active: number
++          description: string
++          id: number
++          max_value: number
++          name: string
++          option: number
++        }
++        Insert: {
++          abbreviation: string
++          active: number
++          description?: string
++          id?: number
++          max_value: number
++          name?: string
++          option?: number
++        }
++        Update: {
++          abbreviation?: string
++          active?: number
++          description?: string
++          id?: number
++          max_value?: number
++          name?: string
++          option?: number
++        }
++        Relationships: []
++      }
++      tellerstanden: {
++        Row: {
++          datum: number
++          id: number
++          tellerbasis_id: number
++          totaal: number
++          treeview_id: number
++          waarde: number
++        }
++        Insert: {
++          datum?: number
++          id?: number
++          tellerbasis_id?: number
++          totaal?: number
++          treeview_id?: number
++          waarde?: number
++        }
++        Update: {
++          datum?: number
++          id?: number
++          tellerbasis_id?: number
++          totaal?: number
++          treeview_id?: number
++          waarde?: number
++        }
++        Relationships: []
++      }
++      treeview: {
++        Row: {
++          accepted: boolean
++          access_type_id: number
++          active: number
++          address: string
++          barcode: string
++          budget_current: number
++          budget_previous: number
++          cabinet_number: number | null
++          carrier_number: string | null
++          city: string
++          compartment: number | null
++          corrective: boolean
++          cost_center_id: number
++          created_at: string | null
++          created_by: string
++          delivery_date: string | null
++          deliveryaddress_name: string | null
++          deliveryaddress_number: number | null
++          depreciation: number
++          depreciation_unit: number
++          description: string
++          description_id: number
++          edit_active: number
++          employee_id: number
++          encoded: string
++          external_access_policy: boolean
++          id: number
++          inactive_id: number
++          included_in_budget: number
++          included_in_budget_date: string | null
++          inspection_agency_id: number
++          inspection_required: number
++          installation_date: number
++          is_lent_out: number
++          last_counted: string | null
++          last_meter_reading: number
++          last_scan_date: string | null
++          last_service: number
++          last_service_date: string | null
++          last_service_id: number | null
++          last_wash_date: string | null
++          lendable: number
++          lending_date: string | null
++          lending_status: number
++          lending_treeview_kind_id: number
++          lending_warehouse_id: number
++          license_plate: string
++          location_id: number
++          machine_monitoring_target_cycle_time: number
++          machine_monitoring_timeout_sec: number
++          main_process_id: number
++          maintenance: number
++          maintenance_company_id: number
++          maintenance_template: boolean
++          manufacturer_id: number
++          meter_reading_recorded: boolean
++          name: string
++          new_id: number
++          nlsfb2_id: number
++          object: string
++          object_template_id: number
++          old_date: string | null
++          owner_id: number
++          parent: number
++          person_id: number | null
++          person2_id: number | null
++          planned_receipt_date: string | null
++          postal_code: string
++          process_step_id: number
++          processing_date: string | null
++          purchase_value: number
++          real_estate_amount: number
++          real_estate_units_id: number
++          record_card: string
++          record_card_old: string | null
++          record_cards_id: number | null
++          relation_id: number
++          relation2_id: number | null
++          released: number
++          report: number
++          rie_number: number
++          serial_number: string
++          show_visual: boolean
++          size: string | null
++          supplier_id: number
++          sweep_api: boolean
++          tree_order: number
++          treeview_kind_id: number
++          treeview_type: string
++          treeviewtype_id: number
++          warranty_until: number
++          work_order: boolean
++          year_built: string
++          yearly_depreciation: number
++        }
++        Insert: {
++          accepted?: boolean
++          access_type_id?: number
++          active?: number
++          address?: string
++          barcode: string
++          budget_current?: number
++          budget_previous?: number
++          cabinet_number?: number | null
++          carrier_number?: string | null
++          city?: string
++          compartment?: number | null
++          corrective?: boolean
++          cost_center_id?: number
++          created_at?: string | null
++          created_by: string
++          delivery_date?: string | null
++          deliveryaddress_name?: string | null
++          deliveryaddress_number?: number | null
++          depreciation?: number
++          depreciation_unit?: number
++          description?: string
++          description_id: number
++          edit_active?: number
++          employee_id: number
++          encoded?: string
++          external_access_policy?: boolean
++          id?: number
++          inactive_id: number
++          included_in_budget: number
++          included_in_budget_date?: string | null
++          inspection_agency_id?: number
++          inspection_required: number
++          installation_date?: number
++          is_lent_out: number
++          last_counted?: string | null
++          last_meter_reading: number
++          last_scan_date?: string | null
++          last_service: number
++          last_service_date?: string | null
++          last_service_id?: number | null
++          last_wash_date?: string | null
++          lendable: number
++          lending_date?: string | null
++          lending_status: number
++          lending_treeview_kind_id: number
++          lending_warehouse_id: number
++          license_plate: string
++          location_id?: number
++          machine_monitoring_target_cycle_time?: number
++          machine_monitoring_timeout_sec?: number
++          main_process_id?: number
++          maintenance?: number
++          maintenance_company_id: number
++          maintenance_template?: boolean
++          manufacturer_id?: number
++          meter_reading_recorded: boolean
++          name?: string
++          new_id?: number
++          nlsfb2_id: number
++          object?: string
++          object_template_id: number
++          old_date?: string | null
++          owner_id: number
++          parent?: number
++          person_id?: number | null
++          person2_id?: number | null
++          planned_receipt_date?: string | null
++          postal_code?: string
++          process_step_id?: number
++          processing_date?: string | null
++          purchase_value?: number
++          real_estate_amount: number
++          real_estate_units_id: number
++          record_card: string
++          record_card_old?: string | null
++          record_cards_id?: number | null
++          relation_id: number
++          relation2_id?: number | null
++          released?: number
++          report?: number
++          rie_number?: number
++          serial_number?: string
++          show_visual?: boolean
++          size?: string | null
++          supplier_id?: number
++          sweep_api?: boolean
++          tree_order?: number
++          treeview_kind_id?: number
++          treeview_type?: string
++          treeviewtype_id?: number
++          warranty_until?: number
++          work_order?: boolean
++          year_built?: string
++          yearly_depreciation?: number
++        }
++        Update: {
++          accepted?: boolean
++          access_type_id?: number
++          active?: number
++          address?: string
++          barcode?: string
++          budget_current?: number
++          budget_previous?: number
++          cabinet_number?: number | null
++          carrier_number?: string | null
++          city?: string
++          compartment?: number | null
++          corrective?: boolean
++          cost_center_id?: number
++          created_at?: string | null
++          created_by?: string
++          delivery_date?: string | null
++          deliveryaddress_name?: string | null
++          deliveryaddress_number?: number | null
++          depreciation?: number
++          depreciation_unit?: number
++          description?: string
++          description_id?: number
++          edit_active?: number
++          employee_id?: number
++          encoded?: string
++          external_access_policy?: boolean
++          id?: number
++          inactive_id?: number
++          included_in_budget?: number
++          included_in_budget_date?: string | null
++          inspection_agency_id?: number
++          inspection_required?: number
++          installation_date?: number
++          is_lent_out?: number
++          last_counted?: string | null
++          last_meter_reading?: number
++          last_scan_date?: string | null
++          last_service?: number
++          last_service_date?: string | null
++          last_service_id?: number | null
++          last_wash_date?: string | null
++          lendable?: number
++          lending_date?: string | null
++          lending_status?: number
++          lending_treeview_kind_id?: number
++          lending_warehouse_id?: number
++          license_plate?: string
++          location_id?: number
++          machine_monitoring_target_cycle_time?: number
++          machine_monitoring_timeout_sec?: number
++          main_process_id?: number
++          maintenance?: number
++          maintenance_company_id?: number
++          maintenance_template?: boolean
++          manufacturer_id?: number
++          meter_reading_recorded?: boolean
++          name?: string
++          new_id?: number
++          nlsfb2_id?: number
++          object?: string
++          object_template_id?: number
++          old_date?: string | null
++          owner_id?: number
++          parent?: number
++          person_id?: number | null
++          person2_id?: number | null
++          planned_receipt_date?: string | null
++          postal_code?: string
++          process_step_id?: number
++          processing_date?: string | null
++          purchase_value?: number
++          real_estate_amount?: number
++          real_estate_units_id?: number
++          record_card?: string
++          record_card_old?: string | null
++          record_cards_id?: number | null
++          relation_id?: number
++          relation2_id?: number | null
++          released?: number
++          report?: number
++          rie_number?: number
++          serial_number?: string
++          show_visual?: boolean
++          size?: string | null
++          supplier_id?: number
++          sweep_api?: boolean
++          tree_order?: number
++          treeview_kind_id?: number
++          treeview_type?: string
++          treeviewtype_id?: number
++          warranty_until?: number
++          work_order?: boolean
++          year_built?: string
++          yearly_depreciation?: number
++        }
++        Relationships: []
++      }
++    }
++    Views: {
++      mold_daily_summary: {
++        Row: {
++          mold_id: number | null
++          mold_name: string | null
++          operation_date: string | null
++          total_products: number | null
++        }
++        Relationships: []
++      }
++      mold_names: {
++        Row: {
++          id: number | null
++          name: string | null
++        }
++        Relationships: []
++      }
++      monitoring_data_visible_mat: {
++        Row: {
++          id: number | null
++          poorten_name: string | null
++          shot_time: number | null
++          timestamp: string | null
++        }
++        Relationships: []
++      }
++      v_daily_shots: {
++        Row: {
++          board: number | null
++          is_swapped: boolean | null
++          machine_key: string | null
++          mold_description: string | null
++          mold_name: string | null
++          port: number | null
++          shot_count: number | null
++          shot_date: string | null
++          swap_color: string | null
++        }
++        Relationships: [
++          {
++            foreignKeyName: "fk_monitoring_board_port"
++            columns: ["board", "port"]
++            isOneToOne: false
++            referencedRelation: "machine_monitoring_poorten"
++            referencedColumns: ["board", "port"]
++          },
++        ]
++      }
++      v_hour_shots: {
++        Row: {
++          board: number | null
++          is_swapped: boolean | null
++          machine_key: string | null
++          mold_description: string | null
++          mold_name: string | null
++          port: number | null
++          shot_count: number | null
++          shot_hour: string | null
++          swap_color: string | null
++        }
++        Relationships: [
++          {
++            foreignKeyName: "fk_monitoring_board_port"
++            columns: ["board", "port"]
++            isOneToOne: false
++            referencedRelation: "machine_monitoring_poorten"
++            referencedColumns: ["board", "port"]
++          },
++        ]
++      }
++      v_machine_monitoring: {
++        Row: {
++          board: number | null
++          machine_id: number | null
++          machine_key: string | null
++          machine_name: string | null
++          port: number | null
++          shot_count: number | null
++          shot_date: string | null
++          visible: boolean | null
++        }
++        Relationships: [
++          {
++            foreignKeyName: "fk_monitoring_board_port"
++            columns: ["board", "port"]
++            isOneToOne: false
++            referencedRelation: "machine_monitoring_poorten"
++            referencedColumns: ["board", "port"]
++          },
++        ]
++      }
++      v_machine_monitoring_hour: {
++        Row: {
++          board: number | null
++          machine_id: number | null
++          machine_key: string | null
++          machine_name: string | null
++          port: number | null
++          shot_count: number | null
++          shot_hour: string | null
++          visible: boolean | null
++        }
++        Relationships: [
++          {
++            foreignKeyName: "fk_monitoring_board_port"
++            columns: ["board", "port"]
++            isOneToOne: false
++            referencedRelation: "machine_monitoring_poorten"
++            referencedColumns: ["board", "port"]
++          },
++        ]
++      }
++      v_machine_monitoring_minute: {
++        Row: {
++          board: number | null
++          machine_id: number | null
++          machine_key: string | null
++          machine_name: string | null
++          port: number | null
++          shot_count: number | null
++          shot_minute: string | null
++          visible: boolean | null
++        }
++        Relationships: [
++          {
++            foreignKeyName: "fk_monitoring_board_port"
++            columns: ["board", "port"]
++            isOneToOne: false
++            referencedRelation: "machine_monitoring_poorten"
++            referencedColumns: ["board", "port"]
++          },
++        ]
++      }
++      v_minute_shots: {
++        Row: {
++          board: number | null
++          is_swapped: boolean | null
++          machine_key: string | null
++          mold_description: string | null
++          mold_name: string | null
++          port: number | null
++          shot_count: number | null
++          shot_minute: string | null
++          swap_color: string | null
++        }
++        Relationships: [
++          {
++            foreignKeyName: "fk_monitoring_board_port"
++            columns: ["board", "port"]
++            isOneToOne: false
++            referencedRelation: "machine_monitoring_poorten"
++            referencedColumns: ["board", "port"]
++          },
++        ]
++      }
++    }
++    Functions: {
++      get_sampled_monitoring_data: {
++        Args: {
++          end_date: string
++          interval_minutes?: number
++          start_date: string
++        }
++        Returns: {
++          poorten_name: string
++          shot_time: number
++          timestamp: string
++        }[]
++      }
++    }
++    Enums: {
++      [_ in never]: never
++    }
++    CompositeTypes: {
++      [_ in never]: never
++    }
++  }
++}
++
++type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
++
++type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
++
++export type Tables<
++  DefaultSchemaTableNameOrOptions extends
++    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
++    | { schema: keyof DatabaseWithoutInternals },
++  TableName extends DefaultSchemaTableNameOrOptions extends {
++    schema: keyof DatabaseWithoutInternals
++  }
++    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
++        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
++    : never = never,
++> = DefaultSchemaTableNameOrOptions extends {
++  schema: keyof DatabaseWithoutInternals
++}
++  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
++      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
++      Row: infer R
++    }
++    ? R
++    : never
++  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
++        DefaultSchema["Views"])
++    ? (DefaultSchema["Tables"] &
++        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
++        Row: infer R
++      }
++      ? R
++      : never
++    : never
++
++export type TablesInsert<
++  DefaultSchemaTableNameOrOptions extends
++    | keyof DefaultSchema["Tables"]
++    | { schema: keyof DatabaseWithoutInternals },
++  TableName extends DefaultSchemaTableNameOrOptions extends {
++    schema: keyof DatabaseWithoutInternals
++  }
++    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
++    : never = never,
++> = DefaultSchemaTableNameOrOptions extends {
++  schema: keyof DatabaseWithoutInternals
++}
++  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
++      Insert: infer I
++    }
++    ? I
++    : never
++  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
++    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
++        Insert: infer I
++      }
++      ? I
++      : never
++    : never
++
++export type TablesUpdate<
++  DefaultSchemaTableNameOrOptions extends
++    | keyof DefaultSchema["Tables"]
++    | { schema: keyof DatabaseWithoutInternals },
++  TableName extends DefaultSchemaTableNameOrOptions extends {
++    schema: keyof DatabaseWithoutInternals
++  }
++    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
++    : never = never,
++> = DefaultSchemaTableNameOrOptions extends {
++  schema: keyof DatabaseWithoutInternals
++}
++  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
++      Update: infer U
++    }
++    ? U
++    : never
++  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
++    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
++        Update: infer U
++      }
++      ? U
++      : never
++    : never
++
++export type Enums<
++  DefaultSchemaEnumNameOrOptions extends
++    | keyof DefaultSchema["Enums"]
++    | { schema: keyof DatabaseWithoutInternals },
++  EnumName extends DefaultSchemaEnumNameOrOptions extends {
++    schema: keyof DatabaseWithoutInternals
++  }
++    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
++    : never = never,
++> = DefaultSchemaEnumNameOrOptions extends {
++  schema: keyof DatabaseWithoutInternals
++}
++  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
++  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
++    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
++    : never
++
++export type CompositeTypes<
++  PublicCompositeTypeNameOrOptions extends
++    | keyof DefaultSchema["CompositeTypes"]
++    | { schema: keyof DatabaseWithoutInternals },
++  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
++    schema: keyof DatabaseWithoutInternals
++  }
++    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
++    : never = never,
++> = PublicCompositeTypeNameOrOptions extends {
++  schema: keyof DatabaseWithoutInternals
++}
++  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
++  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
++    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
++    : never
++
++export const Constants = {
++  graphql_public: {
++    Enums: {},
++  },
++  public: {
++    Enums: {},
++  },
++} as const
+\ No newline at end of file
+diff --git a/Frontend/nextjs-frontend/lib/supabase/server.ts b/Frontend/nextjs-frontend/lib/supabase/server.ts
+index 87a6ba7..c697d19 100644
+--- a/Frontend/nextjs-frontend/lib/supabase/server.ts
++++ b/Frontend/nextjs-frontend/lib/supabase/server.ts
+@@ -18,9 +18,6 @@ export async function createClient() {
+               cookieStore.set(name, value, options)
+             )
+           } catch {
+-            // The `setAll` method was called from a Server Component.
+-            // This can be ignored if you have middleware refreshing
+-            // user sessions.
+           }
+         },
+       },
