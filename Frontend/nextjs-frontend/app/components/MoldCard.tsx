@@ -17,16 +17,20 @@ export default function MoldCard({
   index,
   onTotals,
   onHistory,
+  onCurrentWeekGraphPerDay,
+  onTotalGraphPerWeek
 }: {
   mold: Mold;
   index: number;          
   onTotals: (id: number) => void;
   onHistory: (id: number) => void;
+  onCurrentWeekGraphPerDay: (id: number) => void;
+  onTotalGraphPerWeek: (id: number) => void;
 }) {
   const color = COLORS[index % COLORS.length];
 
   return (
-    <article className={`${color} rounded-3xl p-6 shadow-sm`}>
+    <article className={`${color} rounded-3xl p-4 shadow-sm`}>
       { /* “Tag” with the mold label */ }
       <div className="mx-auto w-32 rounded-2xl bg-white text-center py-6 text-3xl font-semibold tracking-wide shadow">
         {mold.name ?? `M${mold.id}`}
@@ -37,14 +41,28 @@ export default function MoldCard({
           onClick={() => onTotals(mold.id)}
           className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
         >
-          Total number of operations
+          Total Number of Operations
         </button>
 
         <button
           onClick={() => onHistory(mold.id)}
           className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
         >
-          Historical overview
+          Historical Overview
+        </button>
+
+        <button
+          onClick={() => onCurrentWeekGraphPerDay(mold.id)}
+          className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
+        >
+          Current Week Production Graph per Day
+        </button>
+
+        <button
+          onClick={() => onTotalGraphPerWeek(mold.id)}
+          className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
+        >
+          Total Production Graph per Week
         </button>
       </div>
     </article>
