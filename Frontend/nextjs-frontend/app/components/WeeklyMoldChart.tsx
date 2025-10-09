@@ -119,7 +119,7 @@ const end = toWeekStart(endDate);
     if (!chartData) return <p>No chart data available.</p>;
 
     return (
-        <div className="w-full h-[500px]">
+        <div className="w-full h-[500px]" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
             <Line
                 data={chartData}
                 options={{

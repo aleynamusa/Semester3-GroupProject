@@ -45,18 +45,18 @@ export default function MachinesActivity() {
   }, []);
 
   const pill = (s: Status) => {
-    const base = 'inline-flex px-2 py-1 text-xs font-semibold rounded-full';
-    if (s === 'operational') return <span className={`${base} bg-green-100 text-green-800`}>operational</span>;
-    if (s === 'standby')     return <span className={`${base} bg-yellow-100 text-yellow-800`}>standby</span>;
-    return <span className={`${base} bg-gray-200 text-gray-800`}>inactive</span>;
+    const base = 'inline-flex px-2 py-1 text-[0.9rem] font-semibold rounded-full';
+    if (s === 'operational') return <span className={`${base} bg-green-500 text-white`}>operational</span>;
+    if (s === 'standby')     return <span className={`${base} bg-yellow-400 text-black`}>standby</span>;
+    return <span className={`${base} bg-gray-400 text-white`}>inactive</span>;
   };
 
   return (
-    <div className="mb-6">
-      <h2 className="text-xl font-semibold mb-4">Machine activity (mock: 2020-09-30 12:00)</h2>
+    <div className="mb-6"  style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', border: 'var(--border)' }}>
+      <h2 className="text-xl font-semibold mb-4 ml-5">(mock: 2020-09-30 12:00)</h2>
 
       {loading && (
-        <div className="flex justify-center items-center p-6 text-gray-400">
+        <div className="flex justify-center items-center p-6">
           Loading machine activity…
         </div>
       )}
@@ -69,39 +69,30 @@ export default function MachinesActivity() {
       )}
 
       {!loading && !err && (
-        <div className="overflow-x-auto border border-gray-300 rounded-lg bg-black">
-          <table className="min-w-full">
-            <thead className="bg-[#222523]">
+         <div className="overflow-x-auto">
+          <table className="min-w-full border border-gray-300 rounded-lg shadow-md text-center">
+            <thead className="bg-gray-100 dark:bg-[var(--background)]">
               <tr>
-                <th className="px-6 py-3 border-b border-gray-300 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Machine
-                </th>
-                <th className="px-6 py-3 border-b border-gray-300 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Mold
-                </th>
-                <th className="px-6 py-3 border-b border-gray-300 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                  Status
-                </th>
+                <th className="px-6 py-3 text-sm font-medium uppercase tracking-wider">Machine</th>
+                <th className="px-6 py-3 text-sm font-medium uppercase tracking-wider">Mold</th>
+                <th className="px-6 py-3 text-sm font-medium uppercase tracking-wider">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
+            <tbody>
               {rows.length > 0 ? (
-                rows.map((r) => (
-                  <tr key={`${r.MachineName}-${r.MoldName ?? 'none'}`} className="hover:bg-gray-900">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-200">
-                      {r.MachineName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-200">
-                      {r.MoldName ?? '—'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      {pill(r.Status)}
-                    </td>
+                rows.map((r, idx) => (
+                  <tr
+                    key={`${r.MachineName}-${r.MoldName ?? 'none'}`}
+                    className={`text-[1rem] hover:bg-gray-100 dark:hover:bg-gray-900 ${idx % 2 === 0 ? 'bg-white dark:bg-gray-900' : 'bg-gray-50 dark:bg-[var(--background)]'}`}
+                  >
+                    <td className="px-6 py-4 text-center font-medium">{r.MachineName}</td>
+                    <td className="px-6 py-4 text-center">{r.MoldName ?? '—'}</td>
+                    <td className="px-6 py-4 text-center">{pill(r.Status)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={3} className="px-6 py-6 text-center text-sm text-gray-400">
+                  <td colSpan={3} className="px-6 py-6 text-center text-sm text-gray-500">
                     No data.
                   </td>
                 </tr>

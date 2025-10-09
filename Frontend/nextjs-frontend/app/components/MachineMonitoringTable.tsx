@@ -107,7 +107,6 @@ interface Machine {
   } | null;
 }
 
-
 export default function MachineMonitoringTable() {
   const [data, setData] = useState<MachineDataPoint[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -125,8 +124,6 @@ export default function MachineMonitoringTable() {
   const [showTable, setShowTable] = useState(true);
   const [showCharts, setShowCharts] = useState(true);
   const [granularity, setGranularity] = useState<'minute' | 'hour' | 'day'>('day');
-
-
 
   useEffect(() => {
     const fetchMachines = async () => {
@@ -226,7 +223,6 @@ export default function MachineMonitoringTable() {
       setLoading(false);
     }
   };
-
 
   useEffect(() => {
     setLoading(false);
@@ -511,7 +507,6 @@ export default function MachineMonitoringTable() {
             >
               {showTable ? 'Hide' : 'Show'} Table
             </button>
-
           </div>
         </div>
 
@@ -699,7 +694,7 @@ export default function MachineMonitoringTable() {
             )}
           </div>
 
-          {data.length > 0 && (
+          {/* {data.length > 0 && (
             <div className="mt-6 p-4 rounded-lg border " style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', borderColor: 'var(--border)' }}>
               <h3 className="text-lg font-medium mb-2">Summary</h3>
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
@@ -720,7 +715,7 @@ export default function MachineMonitoringTable() {
                 </div>
               </div>
 
-              {/* Additional mold statistics */}
+              Additional mold statistics
               <div className="mt-4 pt-4 border-t border-gray-600">
                 <h4 className="font-medium mb-2">Mold Status Breakdown</h4>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -739,11 +734,9 @@ export default function MachineMonitoringTable() {
                 </div>
               </div>
             </div>
-          )}
+          )} */}
         </div>
       )}
-
-
     </div>
   );
 }

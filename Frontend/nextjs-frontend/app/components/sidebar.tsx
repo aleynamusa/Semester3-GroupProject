@@ -39,6 +39,12 @@ const Sidebar = () => {
         //     href: '/account',
         //     icon: <i className="fa fa-user-circle-o text-white" style={{fontSize: '24px'}} />},
         {
+            name: 'Active Machines',
+            href: '/machine-activity',
+            icon: <i className="fa fa-table text-white" style={{fontSize: '28px'}}></i>
+            
+        },
+        {
             name: 'Machine Monitoring',
             href: '/machine-dashboard',
             icon: <i className="fa fa-exclamation-circle text-white" style={{fontSize: '28px'}}></i>
@@ -52,13 +58,7 @@ const Sidebar = () => {
             name: 'Mold Graph',
             href: '/moldgraph',
             icon: <i className="fa fa-bar-chart text-white" style={{fontSize: '24px'}}></i>
-        },
-        {
-            name: 'Active Machines',
-            href: '/machine-activity',
-            icon: <i className="fa-solid fa-chart-line text-white" style={{fontSize: '24px'}}></i>
-            
-        },
+        }
       ];
 
     const [open, setOpen] = useState(false);
@@ -83,7 +83,7 @@ const Sidebar = () => {
                   <Link
                     href={link.href}
                     className={`flex items-center w-full rounded-md px-3 py-2 transition-colors duration-200
-                      ${active ? 'bg-gray-800 text-[#00A527]' : 'text-gray-300 hover:text-white hover:bg-gray-700 text-[1.1rem]'}`}
+                      ${active ? 'bg-gray-800 text-[#00A527] text-[1.1rem]' : 'text-gray-300 hover:text-white hover:bg-gray-700 text-[1.1rem]'}`}
                     aria-current={active ? 'page' : undefined}
                   >
                     <div className="w-10 flex justify-center">

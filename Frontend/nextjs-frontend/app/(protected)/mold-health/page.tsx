@@ -96,7 +96,7 @@ export default function MoldsPage() {
   const visibleMolds = useMemo(() => (selected ? [selected] : molds), [molds, selected]);
 
   // card pagination
-  useEffect(() => { if (currentPage > Math.ceil((visibleMolds.length || 1)/itemsPerPage)) setCurrentPage(1); }, [visibleMolds, itemsPerPage, currentPage]);
+  useEffect(() => { if (currentPage > Math.ceil((visibleMolds.length || 1) / itemsPerPage)) setCurrentPage(1); }, [visibleMolds, itemsPerPage, currentPage]);
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return visibleMolds.slice(start, start + itemsPerPage);
@@ -185,17 +185,12 @@ export default function MoldsPage() {
         </header>
 
         <div className="p-4 pt-6">
-          <div className="flex justify-end mb-4">
-            <SearchBar onSearch={handleSearch} onClear={clearSearch} />
-          </div>
-          <h2 className="text-[1.5rem] ml-5 font-semibold mb-4">Mold Production Chart</h2>
+          <h2 className="text-[1.5rem] ml-5 font-semibold mb-4">Mold Health Dashboard</h2>
         </div>
 
         <main className="mx-auto max-w-6xl px-4 py-8 text-black">
-          <h1 className="text-4xl font-semibold">Mold Health</h1>
-
-          <div className="mt-4 inline-block rounded-xl bg-neutral-200 px-4 py-2 text-lg font-medium text-black">
-            Molds in Production
+          <div className="flex mb-4">
+            <SearchBar onSearch={handleSearch} onClear={clearSearch} />
           </div>
 
           {searchMsg && <p className="mt-4 text-sm text-neutral-600">{searchMsg}</p>}
@@ -225,70 +220,79 @@ export default function MoldsPage() {
               onItemsPerPageChange={(count) => { setItemsPerPage(count); setCurrentPage(1); }}
             />
           </div>
-
-          {/* Totals modal */}
-          {open === 'totals' && totals && (
-            <Modal onClose={() => setOpen(null)}>
-              <h3 className="text-xl font-semibold mb-2">
-                Totals for mold {totals.moldName ?? totals.moldId}
-              </h3>
-              <ul className="space-y-1 text-sm">
-                <li>Operations: <b>{totals.totalOperations}</b></li>
-                <li>First op: {formatDateTimeUTC(totals.firstOperationAt)}</li>
-                <li>Last op: {formatDateTimeUTC(totals.lastOperationAt)}</li>
-              </ul>
-            </Modal>
-          )}
-
-          {/* History modal */}
-          {open === 'history' && history && (
-            <Modal onClose={() => setOpen(null)}>
-              <h3 className="text-xl font-semibold mb-3">
-                History for mold {history.items[0]?.moldName ?? `#${history.moldId}`}
-              </h3>
-              <div className="max-h-80 overflow-auto">
-                <ul className="space-y-1 text-sm">
-                  {history.items.map((x) => (
-                    <li key={x.prodId} className="border-b py-1">
-                      {x.machineName ?? '—'} :
-                      {' '}
-                      {formatDateTimeUTC(x.prodStart_date)}
-                      {' — '}
-                      {formatDateTimeUTC(x.prodEnd_date)}
-                    </li>
-                  ))}
+          <div style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+            {/* Totals modal */}
+            {open === 'totals' && totals && (
+              <Modal onClose={() => setOpen(null)}>
+                <h3 className="text-xl font-semibold mb-2" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
+                  Totals for mold {totals.moldName ?? totals.moldId}
+                </h3>
+                <ul className="mt-5 space-y-3 text-sm">
+                  <li>
+                    <span className="text-neutral-600 dark:text-neutral-300 mr-2">Operations:</span>
+                    <b>{totals.totalOperations}</b>
+                  </li>
+                  <li>
+                    <span className="text-neutral-600 dark:text-neutral-300 mr-2">First Operation:</span>
+                    <span>{formatDateTimeUTC(totals.firstOperationAt)}</span>
+                  </li>
+                  <li>
+                    <span className="text-neutral-600 dark:text-neutral-300 mr-2">Last Operation:</span>
+                    <span>{formatDateTimeUTC(totals.lastOperationAt)}</span>
+                  </li>
                 </ul>
-              </div>
+              </Modal>
+            )}
 
-              {/* Optional load more */}
-              <div className="mt-3 flex justify-end">
+            {/* History modal */}
+            {open === 'history' && history && (
+              <Modal onClose={() => setOpen(null)}>
+                <h3 className="text-xl font-semibold mb-3">
+                  History for mold {history.items[0]?.moldName ?? `#${history.moldId}`}
+                </h3>
+                <div className="max-h-80 overflow-auto">
+                  <ul className="space-y-2 text-sm">
+                    {history.items.map((x) => (
+                      <li key={x.prodId} className="py-2 border-b border-gray-300 dark:border-gray-700">
+                        <div className="font-medium">{x.machineName ?? '—'}</div>
+                        <div className="text-neutral-600 dark:text-neutral-300">
+                          {formatDateTimeUTC(x.prodStart_date)} — {formatDateTimeUTC(x.prodEnd_date)}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {/* Optional load more */}
+                {/* <div className="mt-3 flex justify-end">
                 <button
                   className="rounded-md border px-3 py-1 text-sm hover:bg-neutral-50"
                   onClick={loadMoreHistory}
                 >
                   Load more
                 </button>
-              </div>
-            </Modal>
-          )}
+              </div> */}
+              </Modal>
+            )}
 
-          {/* Charts */}
-          {open === 'currentWeekGraph' && currentWeekGraph && (
-            <Modal onClose={() => setOpen(null)}>
-              <h3 className="text-xl font-semibold mb-3">
-                Current Week Production Graph per Day for Mold {currentWeekGraph.moldName}
-              </h3>
-              <DailyMoldChart moldName={currentWeekGraph.moldName} startDate="2020-09-24" endDate="2020-09-30" />
-            </Modal>
-          )}
-          {open === 'totalGraph' && totalGraph && (
-            <Modal onClose={() => setOpen(null)}>
-              <h3 className="text-xl font-semibold mb-3">
-                Total Production Graph per Week for Mold {totalGraph.moldName}
-              </h3>
-              <WeeklyMoldChart moldName={totalGraph.moldName} startDate="2020-09-24" endDate="2020-09-30" />
-            </Modal>
-          )}
+            {/* Charts */}
+            {open === 'currentWeekGraph' && currentWeekGraph && (
+              <Modal onClose={() => setOpen(null)}>
+                <h3 className="text-xl font-semibold mb-3">
+                  Daily Production for This Week - Mold {currentWeekGraph.moldName}
+                </h3>
+                <DailyMoldChart moldName={currentWeekGraph.moldName} startDate="2020-09-24" endDate="2020-09-30" />
+              </Modal>
+            )}
+            {open === 'totalGraph' && totalGraph && (
+              <Modal onClose={() => setOpen(null)}>
+                <h3 className="text-xl font-semibold mb-3">
+                  Weekly Production for Total Time - Mold {totalGraph.moldName}
+                </h3>
+                <WeeklyMoldChart moldName={totalGraph.moldName} startDate="2020-09-24" endDate="2020-09-30" />
+              </Modal>
+            )}
+          </div>
         </main>
       </div>
     </div>
@@ -299,11 +303,11 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl"
+        className="w-full max-w-2xl rounded-2xl p-6 shadow-xl" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-end">
-          <button onClick={onClose} className="rounded-md px-2 py-1 text-sm hover:bg-neutral-100">✕</button>
+          <button onClick={onClose} className="rounded-md px-2 py-1 text-sm hover:bg-neutral-500">✕</button>
         </div>
         {children}
       </div>

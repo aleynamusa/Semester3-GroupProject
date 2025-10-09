@@ -55,14 +55,14 @@ onTotals: (id: number) => void;
           onClick={() => onCurrentWeekGraphPerDay(mold.id)}
           className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
         >
-          Current Week Production Graph per Day
+          Daily Production for This Week
         </button>
 
         <button
           onClick={() => onTotalGraphPerWeek(mold.id)}
           className="rounded-xl bg-white/70 px-4 py-3 text-left text-sm font-medium hover:bg-white transition shadow-sm"
         >
-          Total Production Graph per Week
+          Weekly Production for Total Time
         </button>
       </div>
     </article>

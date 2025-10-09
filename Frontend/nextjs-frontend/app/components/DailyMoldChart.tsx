@@ -94,7 +94,7 @@ export default function DailyMoldChart({ moldName, startDate, endDate }: Props) 
     if (error) return <p className="text-red-500">{error}</p>;
 
     return chartData && chartData.datasets[0].data.length > 0 ? (
-        <div className="w-full h-[500px]">
+        <div className="w-full h-[500px]" style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)' }}>
             <Line
                 data={chartData}
                 options={{

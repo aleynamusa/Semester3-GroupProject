@@ -8,7 +8,7 @@ export default function Home() {
       <Sidebar />
 
       {/* Main Content */}
-      <div className="flex-1 ml-0 md:ml-60">
+      <div className="flex-1 ml-0 md:ml-60"  style={{ backgroundColor: 'var(--background)', color: 'var(--foreground)', border: 'var(--border)' }}>
         {/* Header */}
         <div className="top-0 left-0 md:left-10 w-full bg-[#00A527] text-white p-2.5 z-50">
         
