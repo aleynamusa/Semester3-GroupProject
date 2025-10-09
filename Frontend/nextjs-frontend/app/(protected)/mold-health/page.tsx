@@ -8,13 +8,12 @@ import DailyMoldChart from '@/app/components/DailyMoldChart';
 import WeeklyMoldChart from '@/app/components/WeeklyMoldChart';
 import SearchBar from '@/app/components/SearchBar';
 
-// stupid time zones
+// time format (UTC)
 const fmtDateTimeUTC = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
   dateStyle: 'medium',
   timeStyle: 'short',
 });
-
 function formatDateTimeUTC(value?: string | null) {
   if (!value) return '—';
   return fmtDateTimeUTC.format(new Date(value));
@@ -31,8 +30,21 @@ type Totals = {
   lastOperationAt: string | null;
 };
 
-type HistoryItem = { id: number; cycle_time_ms: number | null; status: string | null; created_at: string };
-type HistoryResp = { moldId: number; items: HistoryItem[]; limit: number; offset: number };
+// === Align with server response ===
+type HistoryItem = {
+  prodId: number;
+  prodStart_date: string;          // server sends string
+  prodEnd_date: string | null;
+  moldName: string | null;
+  machineName: string | null;
+};
+type HistoryResp = {
+  moldId: number;
+  items: HistoryItem[];
+  offset: number;
+  limit: number;
+};
+// ===================================
 
 type CurrentWeekGraphPerDay = { moldId: number; moldName: string; data: any[] };
 type TotalGraphPerWeek = { moldId: number; moldName: string; data: any[] };
@@ -42,23 +54,24 @@ export default function MoldsPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // search state
+  // search
   const [selected, setSelected] = useState<Mold | null>(null);
   const [searchMsg, setSearchMsg] = useState<string | null>(null);
 
-  // pagination (client-side)
+  // pagination (cards)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(9);
 
   // modals
   const [open, setOpen] = useState<'totals' | 'history' | 'currentWeekGraph' | 'totalGraph' | null>(null);
   const [totals, setTotals] = useState<Totals | null>(null);
-  const [history, setHistory] = useState<HistoryResp | null>(null);
+  const [history, setHistory] = useState<HistoryResp | null>(null); // store full response
   const [currentWeekGraph, setCurrentWeekGraph] = useState<CurrentWeekGraphPerDay | null>(null);
   const [totalGraph, setTotalGraph] = useState<TotalGraphPerWeek | null>(null);
 
+  // load molds
   useEffect(() => {
-    const loadMolds = async () => {
+    (async () => {
       try {
         setLoading(true);
         const res = await fetch('/api/molds', { cache: 'no-store' });
@@ -66,8 +79,8 @@ export default function MoldsPage() {
         const json = await res.json();
         const items: Mold[] = Array.isArray(json) ? json : (json?.items ?? []);
         setMolds(items);
-        setCurrentPage(1); // reset to first page when data changes
-        setSelected(null); // reset search selection
+        setCurrentPage(1);
+        setSelected(null);
         setSearchMsg(null);
         setError(null);
       } catch (e: any) {
@@ -76,50 +89,33 @@ export default function MoldsPage() {
       } finally {
         setLoading(false);
       }
-    };
-    loadMolds();
+    })();
   }, []);
 
-  // computed list (search-aware)
-  const visibleMolds = useMemo(() => {
-    if (selected) return [selected];
-    return molds;
-  }, [molds, selected]);
+  // visible list
+  const visibleMolds = useMemo(() => (selected ? [selected] : molds), [molds, selected]);
 
-  // pagination for visible list
-  const totalPages = Math.max(1, Math.ceil((visibleMolds.length ?? 0) / itemsPerPage));
+  // card pagination
+  useEffect(() => { if (currentPage > Math.ceil((visibleMolds.length || 1)/itemsPerPage)) setCurrentPage(1); }, [visibleMolds, itemsPerPage, currentPage]);
   const pageItems = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return visibleMolds.slice(start, start + itemsPerPage);
   }, [visibleMolds, currentPage, itemsPerPage]);
 
-  // search handlers
+  // search
   const handleSearch = (term: string) => {
     const t = term.trim().toLowerCase();
     if (!t) {
-      setSelected(null);
-      setSearchMsg(null);
-      setCurrentPage(1);
-      return;
+      setSelected(null); setSearchMsg(null); setCurrentPage(1); return;
     }
     const match = molds.find((m) => (m.name ?? '').toLowerCase() === t);
-    if (match) {
-      setSelected(match);
-      setSearchMsg(null);
-      setCurrentPage(1);
-    } else {
-      setSelected(null);
-      setSearchMsg(`No molds found with the name "${term}".`);
-      setCurrentPage(1);
-    }
-  };
-  const clearSearch = () => {
-    setSelected(null);
-    setSearchMsg(null);
+    if (match) { setSelected(match); setSearchMsg(null); }
+    else { setSelected(null); setSearchMsg(`No molds found with the name "${term}".`); }
     setCurrentPage(1);
   };
+  const clearSearch = () => { setSelected(null); setSearchMsg(null); setCurrentPage(1); };
 
-  // modals openers
+  // openers
   const openTotals = async (id: number) => {
     try {
       const r = await fetch(`/api/molds/${id}/total-ops`, { cache: 'no-store' });
@@ -127,33 +123,24 @@ export default function MoldsPage() {
       const json: Totals = await r.json();
       setTotals(json);
       setOpen('totals');
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const openCurrentWeekGraph = (id: number) => {
     const mold = molds.find(m => m.id === id);
     if (!mold) return;
-    setCurrentWeekGraph({
-      moldId: id,
-      moldName: mold.name ?? `M${mold.id}`,
-      data: [],
-    });
+    setCurrentWeekGraph({ moldId: id, moldName: mold.name ?? `M${mold.id}`, data: [] });
     setOpen('currentWeekGraph');
   };
 
   const openTotalGraph = (id: number) => {
     const mold = molds.find(m => m.id === id);
     if (!mold) return;
-    setTotalGraph({
-      moldId: id,
-      moldName: mold.name ?? `M${mold.id}`,
-      data: [],
-    });
+    setTotalGraph({ moldId: id, moldName: mold.name ?? `M${mold.id}`, data: [] });
     setOpen('totalGraph');
   };
 
+  // === HISTORY wired to your server route ===
   const openHistory = async (id: number) => {
     try {
       const r = await fetch(`/api/molds/${id}/history?limit=30`, { cache: 'no-store' });
@@ -165,10 +152,28 @@ export default function MoldsPage() {
       console.error(err);
     }
   };
+  // ==========================================
 
-  if (error) {
-    return <p className="mt-6 text-red-600">Error: {error}</p>;
-  }
+  // optional "load more" inside history modal
+  const loadMoreHistory = async () => {
+    if (!history) return;
+    try {
+      const nextOffset = history.offset + history.limit;
+      const r = await fetch(`/api/molds/${history.moldId}/history?limit=${history.limit}&offset=${nextOffset}`, { cache: 'no-store' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const more: HistoryResp = await r.json();
+      setHistory({
+        ...history,
+        items: [...history.items, ...more.items],
+        offset: more.offset,
+        limit: more.limit,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  if (error) return <p className="mt-6 text-red-600">Error: {error}</p>;
 
   return (
     <div className="flex">
@@ -202,7 +207,7 @@ export default function MoldsPage() {
               <MoldCard
                 key={m.id}
                 mold={m}
-                index={(currentPage - 1) * itemsPerPage + idx} // keeps color cycle stable across pages
+                index={(currentPage - 1) * itemsPerPage + idx}
                 onTotals={() => openTotals(m.id)}
                 onHistory={() => openHistory(m.id)}
                 onCurrentWeekGraphPerDay={() => openCurrentWeekGraph(m.id)}
@@ -217,10 +222,7 @@ export default function MoldsPage() {
               totalItems={visibleMolds.length}
               itemsPerPage={itemsPerPage}
               onPageChange={(page) => setCurrentPage(page)}
-              onItemsPerPageChange={(count) => {
-                setItemsPerPage(count);
-                setCurrentPage(1); // reset to first page when page size changes
-              }}
+              onItemsPerPageChange={(count) => { setItemsPerPage(count); setCurrentPage(1); }}
             />
           </div>
 
@@ -232,9 +234,8 @@ export default function MoldsPage() {
               </h3>
               <ul className="space-y-1 text-sm">
                 <li>Operations: <b>{totals.totalOperations}</b></li>
-                {/* <li>Avg cycle (ms): <b>{totals.avgCycleMs ?? '—'}</b></li> */}
-                <li>First op: {totals.firstOperationAt ? formatDateTimeUTC(totals.firstOperationAt) : '—'}</li>
-                <li>Last op: {totals.lastOperationAt ? formatDateTimeUTC(totals.lastOperationAt) : '—'}</li>
+                <li>First op: {formatDateTimeUTC(totals.firstOperationAt)}</li>
+                <li>Last op: {formatDateTimeUTC(totals.lastOperationAt)}</li>
               </ul>
             </Modal>
           )}
@@ -242,44 +243,50 @@ export default function MoldsPage() {
           {/* History modal */}
           {open === 'history' && history && (
             <Modal onClose={() => setOpen(null)}>
-              <h3 className="text-xl font-semibold mb-3">History for mold {history.moldId}</h3>
+              <h3 className="text-xl font-semibold mb-3">
+                History for mold {history.items[0]?.moldName ?? `#${history.moldId}`}
+              </h3>
               <div className="max-h-80 overflow-auto">
                 <ul className="space-y-1 text-sm">
                   {history.items.map((x) => (
-                    <li key={x.id} className="border-b py-1">
-                      {formatDateTimeUTC(x.created_at)} — {x.status ?? 'ok'} — {x.cycle_time_ms ?? '—'} ms
+                    <li key={x.prodId} className="border-b py-1">
+                      {x.machineName ?? '—'} :
+                      {' '}
+                      {formatDateTimeUTC(x.prodStart_date)}
+                      {' — '}
+                      {formatDateTimeUTC(x.prodEnd_date)}
                     </li>
                   ))}
                 </ul>
               </div>
+
+              {/* Optional load more */}
+              <div className="mt-3 flex justify-end">
+                <button
+                  className="rounded-md border px-3 py-1 text-sm hover:bg-neutral-50"
+                  onClick={loadMoreHistory}
+                >
+                  Load more
+                </button>
+              </div>
             </Modal>
           )}
 
-          {/* Current week per-day graph */}
+          {/* Charts */}
           {open === 'currentWeekGraph' && currentWeekGraph && (
             <Modal onClose={() => setOpen(null)}>
               <h3 className="text-xl font-semibold mb-3">
                 Current Week Production Graph per Day for Mold {currentWeekGraph.moldName}
               </h3>
-              <DailyMoldChart
-                moldName={currentWeekGraph.moldName}
-                startDate="2020-09-24"
-                endDate="2020-09-30"
-              />
+              <DailyMoldChart moldName={currentWeekGraph.moldName} startDate="2020-09-24" endDate="2020-09-30" />
             </Modal>
           )}
-
-          {/* Total per-week graph */}
           {open === 'totalGraph' && totalGraph && (
             <Modal onClose={() => setOpen(null)}>
               <h3 className="text-xl font-semibold mb-3">
                 Total Production Graph per Week for Mold {totalGraph.moldName}
               </h3>
-              <WeeklyMoldChart
-                moldName={totalGraph.moldName}
-                startDate="2020-09-24"
-                endDate="2020-09-30"
-              />
+              <WeeklyMoldChart moldName={totalGraph.moldName} startDate="2020-09-24" endDate="2020-09-30" />
             </Modal>
           )}
         </main>
@@ -296,9 +303,7 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-end">
-          <button onClick={onClose} className="rounded-md px-2 py-1 text-sm hover:bg-neutral-100">
-            ✕
-          </button>
+          <button onClick={onClose} className="rounded-md px-2 py-1 text-sm hover:bg-neutral-100">✕</button>
         </div>
         {children}
       </div>
